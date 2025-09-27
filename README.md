@@ -2,8 +2,6 @@
 
 A beautiful, offline-first personal finance management app built with React Native and Expo. Track your income, expenses, and manage multiple accounts with a sleek dark theme interface.
 
-![WallyMobile Logo](assets/icon.png)
-
 ## ✨ Features
 
 ### 💳 **Transaction Management**
