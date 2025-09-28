@@ -29,12 +29,14 @@ type AppAction =
   | { type: 'CLEAR_ALL_DATA' };
 
 const currencies: Currency[] = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 83 },
   { code: 'USD', symbol: '$', name: 'US Dollar', rate: 1 },
   { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.85 },
   { code: 'GBP', symbol: '£', name: 'British Pound', rate: 0.73 },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rate: 110 },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 83 },
   { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rate: 1.25 },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rate: 1.35 },
+  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc', rate: 0.92 },
 ];
 
 const defaultCategories: Category[] = [

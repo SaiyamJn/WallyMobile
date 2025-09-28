@@ -62,16 +62,16 @@ const styles = StyleSheet.create({
   navButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginHorizontal:3,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginHorizontal: 2,
   },
   navButtonActive: {
     backgroundColor: '#3e3e3eff',
   },
   navIcon: {
-    fontSize: 20,
+    fontSize: 18,
     marginBottom: 4,
   },
   navIconActive: {

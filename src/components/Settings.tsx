@@ -40,69 +40,6 @@ export function Settings() {
         <Text style={styles.title}>Settings</Text>
       </View>
 
-      {/* Currency Settings */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Currency</Text>
-        <View style={styles.currencyCard}>
-          <Text style={styles.currentCurrency}>
-            Current: {state.currentCurrency.symbol} {state.currentCurrency.name}
-          </Text>
-          <Text style={styles.currencyNote}>
-            Select a different currency to convert all amounts
-          </Text>
-          <View style={styles.currencyList}>
-            {currencies.map((currency) => (
-              <TouchableOpacity
-                key={currency.code}
-                style={[
-                  styles.currencyButton,
-                  state.currentCurrency.code === currency.code && styles.currencyButtonActive
-                ]}
-                onPress={() => handleCurrencyChange(currency)}
-              >
-                <Text style={styles.currencySymbol}>{currency.symbol}</Text>
-                <View style={styles.currencyInfo}>
-                  <Text style={[
-                    styles.currencyCode,
-                    state.currentCurrency.code === currency.code && styles.currencyCodeActive
-                  ]}>
-                    {currency.code}
-                  </Text>
-                  <Text style={[
-                    styles.currencyName,
-                    state.currentCurrency.code === currency.code && styles.currencyNameActive
-                  ]}>
-                    {currency.name}
-                  </Text>
-                </View>
-                {state.currentCurrency.code === currency.code && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* App Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>App Information</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Total Transactions</Text>
-            <Text style={styles.infoValue}>{state.transactions.length}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Categories</Text>
-            <Text style={styles.infoValue}>{state.categories.length}</Text>
-          </View>
-        </View>
-      </View>
-
       {/* Data Management */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data Management</Text>
@@ -130,6 +67,55 @@ export function Settings() {
             </View>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Currency Settings */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Currency</Text>
+        <View style={styles.currencyCard}>
+          <Text style={styles.currentCurrency}>
+            {state.currentCurrency.symbol} {state.currentCurrency.name}
+          </Text>
+          <View style={styles.currencyGrid}>
+            {currencies.map((currency) => (
+              <TouchableOpacity
+                key={currency.code}
+                style={[
+                  styles.currencyGridButton,
+                  state.currentCurrency.code === currency.code && styles.currencyGridButtonActive
+                ]}
+                onPress={() => handleCurrencyChange(currency)}
+              >
+                <Text style={styles.currencyGridSymbol}>{currency.symbol}</Text>
+                <Text style={[
+                  styles.currencyGridCode,
+                  state.currentCurrency.code === currency.code && styles.currencyGridCodeActive
+                ]}>
+                  {currency.code}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* App Information */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>App Information</Text>
+        <View style={styles.infoCard}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Version</Text>
+            <Text style={styles.infoValue}>1.0.0</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Total Transactions</Text>
+            <Text style={styles.infoValue}>{state.transactions.length}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Categories</Text>
+            <Text style={styles.infoValue}>{state.categories.length}</Text>
+          </View>
         </View>
       </View>
 
@@ -166,28 +152,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 100,
     marginTop:30,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   backButton: {
-    marginRight: 16,
-    padding: 8,
+    marginRight: 12,
+    padding: 6,
     backgroundColor: '#202020ff',
-    borderRadius: 12,
+    borderRadius: 8,
   },
   backIcon: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#ffffff',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -201,76 +187,61 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   currencyCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   currentCurrency: {
-    fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  currencyNote: {
     fontSize: 16,
-    color: '#9ca3af',
-    marginBottom: 20,
-    lineHeight: 24,
-  },
-  currencyList: {
-    gap: 12,
-  },
-  currencyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#3e3e3eff',
-    borderRadius: 12,
-  },
-  currencyButtonActive: {
-    backgroundColor: '#3e3e3eff',
-  },
-  currencySymbol: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  currencyInfo: {
-    flex: 1,
-  },
-  currencyCode: {
-    fontSize: 18,
     color: '#ffffff',
     fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  currencyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  currencyGridButton: {
+    width: '22%',
+    aspectRatio: 1,
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  currencyGridButtonActive: {
+    backgroundColor: '#10b981',
+  },
+  currencyGridSymbol: {
+    fontSize: 20,
     marginBottom: 4,
   },
-  currencyCodeActive: {
-    color: '#ffffff',
-  },
-  currencyName: {
-    fontSize: 16,
+  currencyGridCode: {
+    fontSize: 10,
     color: '#9ca3af',
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  currencyNameActive: {
+  currencyGridCodeActive: {
     color: '#ffffff',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#10b981',
-    fontWeight: 'bold',
   },
   infoCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   infoItem: {
     flexDirection: 'row',
@@ -292,8 +263,8 @@ const styles = StyleSheet.create({
   },
   dataCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   dataButton: {
     flexDirection: 'row',
@@ -325,8 +296,8 @@ const styles = StyleSheet.create({
   },
   aboutCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   appName: {
     fontSize: 24,

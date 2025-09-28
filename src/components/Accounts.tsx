@@ -17,7 +17,7 @@ export function Accounts() {
     type: 'trip' as 'trip' | 'savings' | 'investment' | 'other',
     description: '',
     icon: '✈️',
-    color: '#3b82f6'
+    color: '#3b82f6' // Default color, not user-selectable
   });
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
   const [isAddingMoney, setIsAddingMoney] = useState(false);
@@ -30,7 +30,6 @@ export function Accounts() {
   ];
 
   const iconOptions = ['✈️', '💳', '📊', '💳', '🏦', '💎', '🎯', '🚀', '⭐', '🔒', '💼', '🏠', '🎮', '📚', '🎨', '🎵'];
-  const colorOptions = ['#ef4444', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#84cc16'];
 
 
   const handleAddAccount = () => {
@@ -76,49 +75,43 @@ export function Accounts() {
   };
 
   const renderAccountItem = (account: Account) => (
-    <View key={account.id} style={styles.accountCard}>
-      <TouchableOpacity
-        style={styles.accountClickableArea}
-        onPress={() => {
-          // Navigate to transactions with this account filtered
-          dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'transactions', accountId: account.id } });
-        }}
-        activeOpacity={0.7}
-      >
-        <View style={styles.accountHeader}>
-          <View style={styles.accountLeft}>
-            <View 
-              style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
-            >
-              <Text style={styles.accountIcon}>{account.icon}</Text>
-            </View>
-            <View style={styles.accountInfo}>
-              <Text style={styles.accountName}>{account.name}</Text>
-              <Text style={styles.accountType}>{accountTypeOptions.find(t => t.value === account.type)?.label}</Text>
-              {account.description && (
-                <Text style={styles.accountDescription}>{account.description}</Text>
-              )}
-            </View>
+    <TouchableOpacity
+      key={account.id}
+      style={styles.accountCard}
+      onPress={() => {
+        // Navigate to transactions with this account filtered
+        dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'transactions', accountId: account.id } });
+      }}
+      activeOpacity={0.7}
+    >
+      <View style={styles.accountHeader}>
+        <View style={styles.accountLeft}>
+          <View 
+            style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
+          >
+            <Text style={styles.accountIcon}>{account.icon}</Text>
           </View>
-          <View style={styles.accountActions}>
-            <TouchableOpacity
-              style={styles.viewTransactionsButton}
-              onPress={() => {
-                // Navigate to transactions with this account filtered
-                dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'transactions', accountId: account.id } });
-              }}
-            >
-              <Text style={styles.viewTransactionsText}>View Transactions</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteAccount(account.id)}
-            >
-              <Text style={styles.deleteIcon}>🗑️</Text>
-            </TouchableOpacity>
+          <View style={styles.accountInfo}>
+            <Text style={styles.accountName}>{account.name}</Text>
+            <Text style={styles.accountType}>{accountTypeOptions.find(t => t.value === account.type)?.label}</Text>
+            {account.description && (
+              <Text style={styles.accountDescription}>{account.description}</Text>
+            )}
           </View>
         </View>
-      </TouchableOpacity>
+        <View style={styles.accountRight}>
+          <Text style={styles.viewTransactionsHint}>View Transactions →</Text>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent card click when deleting
+              handleDeleteAccount(account.id);
+            }}
+          >
+            <Text style={styles.deleteIcon}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       
       <View style={styles.accountBalance}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
@@ -160,7 +153,7 @@ export function Accounts() {
           <Text style={styles.buttonText}>- Remove</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -179,7 +172,6 @@ export function Accounts() {
         <>
           {/* Accounts List */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Accounts</Text>
             {state.accounts.length > 0 ? (
               <View style={styles.accountsList}>
                 {state.accounts.map(renderAccountItem)}
@@ -187,8 +179,8 @@ export function Accounts() {
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>💳</Text>
-                <Text style={styles.emptyTitle}>No accounts yet</Text>
-                <Text style={styles.emptyText}>Create your first account to start tracking!</Text>
+                <Text style={styles.emptyTitle}>No accounts</Text>
+                <Text style={styles.emptyText}>Create an account to start tracking</Text>
               </View>
             )}
           </View>
@@ -197,7 +189,7 @@ export function Accounts() {
             style={styles.addButton}
             onPress={() => setShowAddForm(true)}
           >
-            <Text style={styles.addButtonText}>+ Add New Account</Text>
+            <Text style={styles.addButtonText}>+ Add Account</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -208,7 +200,7 @@ export function Accounts() {
           bounces={false}
         >
           <View style={styles.addForm}>
-          <Text style={styles.formTitle}>Add New Account</Text>
+          <Text style={styles.formTitle}>Add Account</Text>
           
           {/* Account Name */}
           <View style={styles.inputGroup}>
@@ -217,7 +209,7 @@ export function Accounts() {
               style={styles.input}
               value={newAccount.name}
               onChangeText={(text) => setNewAccount({...newAccount, name: text})}
-              placeholder="Enter account name"
+              placeholder="Account name"
               placeholderTextColor="#9ca3af"
             />
           </View>
@@ -254,7 +246,7 @@ export function Accounts() {
               style={styles.textArea}
               value={newAccount.description}
               onChangeText={(text) => setNewAccount({...newAccount, description: text})}
-              placeholder="Enter account description (optional)"
+              placeholder="Description (optional)"
               placeholderTextColor="#9ca3af"
               multiline
               numberOfLines={3}
@@ -265,7 +257,6 @@ export function Accounts() {
           {/* Icon Selection */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Icon</Text>
-            <Text style={styles.scrollHint}>← Swipe or scroll to see more icons →</Text>
             <View style={styles.iconContainer}>
               <ScrollView 
                 horizontal 
@@ -292,23 +283,6 @@ export function Accounts() {
             </View>
           </View>
 
-          {/* Color Selection */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Color</Text>
-            <View style={styles.colorSelector}>
-              {colorOptions.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  style={[
-                    styles.colorButton,
-                    { backgroundColor: color },
-                    newAccount.color === color && styles.colorButtonActive
-                  ]}
-                  onPress={() => setNewAccount({...newAccount, color})}
-                />
-              ))}
-            </View>
-          </View>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -399,8 +373,8 @@ const styles = StyleSheet.create({
   },
   accountCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   accountHeader: {
     flexDirection: 'row',
@@ -414,76 +388,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   accountIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   accountIcon: {
-    fontSize: 24,
+    fontSize: 18,
   },
   accountInfo: {
     flex: 1,
   },
   accountName: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   accountType: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   accountDescription: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6b7280',
   },
   deleteButton: {
-    padding: 12,
+    padding: 8,
     backgroundColor: '#ef4444',
-    borderRadius: 8,
-    minWidth: 40,
+    borderRadius: 6,
+    minWidth: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteIcon: {
-    fontSize: 16,
+    fontSize: 14,
   },
   accountBalance: {
     alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 16,
+    marginBottom: 12,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#3e3e3eff',
   },
   balanceLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9ca3af',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   balanceAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   balanceActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
     paddingHorizontal: 0,
-    gap: 8,
+    gap: 6,
   },
   balanceButton: {
     flex: 1,
-    height: 48,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    height: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -606,13 +580,6 @@ const styles = StyleSheet.create({
   typeTextActive: {
     color: '#ffffff',
   },
-  scrollHint: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 8,
-  },
   iconContainer: {
     marginTop: 12,
     height: 80,
@@ -639,22 +606,6 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 24,
-  },
-  colorSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  colorButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  colorButtonActive: {
-    borderColor: '#ffffff',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -685,23 +636,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  accountClickableArea: {
-    // No additional styles needed, just for touch handling
-  },
-  accountActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  accountRight: {
+    alignItems: 'flex-end',
     gap: 8,
   },
-  viewTransactionsButton: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  viewTransactionsText: {
-    color: '#ffffff',
+  viewTransactionsHint: {
+    color: '#9ca3af',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

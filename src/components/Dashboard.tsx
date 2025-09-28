@@ -87,15 +87,13 @@ export function Dashboard() {
         </View>
 
         {/* Accounts Section */}
-        <View style={styles.accountsCard}>
+        <TouchableOpacity 
+          style={styles.accountsCard}
+          onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })}
+          activeOpacity={0.7}
+        >
           <View style={styles.accountsHeader}>
             <Text style={styles.cardTitle}>Accounts</Text>
-            <TouchableOpacity
-              style={styles.manageButton}
-              onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })}
-            >
-              <Text style={styles.manageButtonText}>Manage</Text>
-            </TouchableOpacity>
           </View>
           
           {state.accounts.length > 0 ? (
@@ -132,28 +130,20 @@ export function Dashboard() {
               </View>
               
               {state.accounts.length > 3 && (
-                <TouchableOpacity
-                  style={styles.viewAllButton}
-                  onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })}
-                >
+                <View style={styles.viewAllButton}>
                   <Text style={styles.viewAllText}>
-                    View All {state.accounts.length} Accounts
+                    +{state.accounts.length - 3} more accounts
                   </Text>
-                </TouchableOpacity>
+                </View>
               )}
             </>
           ) : (
             <View style={styles.emptyAccountsState}>
               <Text style={styles.emptyAccountsText}>No accounts yet</Text>
-              <TouchableOpacity
-                style={styles.createAccountButton}
-                onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })}
-              >
-                <Text style={styles.createAccountButtonText}>Create Account</Text>
-              </TouchableOpacity>
+              <Text style={styles.createAccountHint}>Tap to create your first account</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Recent Transactions */}
         <View style={styles.transactionsCard}>
@@ -232,26 +222,26 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   welcomeText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#9ca3af',
     fontWeight: '400',
   },
   balanceCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   balanceHeader: {
     flexDirection: 'row',
@@ -265,10 +255,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   walletIcon: {
-    fontSize: 24,
+    fontSize: 20,
   },
   balanceTitle: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#000000',
     fontWeight: '600',
   },
@@ -278,7 +268,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   balanceAmount: {
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#000000',
   },
@@ -414,17 +404,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  manageButton: {
-    backgroundColor: '#3e3e3eff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  manageButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   accountsTotal: {
     alignItems: 'center',
     marginBottom: 20,
@@ -515,6 +494,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  createAccountHint: {
+    color: '#9ca3af',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
   },
   floatingButton: {
     position: 'absolute',

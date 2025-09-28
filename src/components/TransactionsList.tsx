@@ -49,13 +49,16 @@ export function TransactionsList() {
       {/* Account Filter */}
       {state.accounts.length > 0 && (
         <View style={styles.accountFilterContainer}>
-          <Text style={styles.accountFilterLabel}>Filter by Account:</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.accountFilterScroll}
-            contentContainerStyle={styles.accountFilterContent}
-          >
+          {state.accounts.length > 2 && (
+            <Text style={styles.scrollHint}>← Swipe to see all accounts →</Text>
+          )}
+          <View style={styles.accountFilterWrapper}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={state.accounts.length > 2}
+              style={styles.accountFilterScroll}
+              contentContainerStyle={styles.accountFilterContent}
+            >
             <TouchableOpacity
               style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
               onPress={() => {
@@ -82,7 +85,8 @@ export function TransactionsList() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+            </ScrollView>
+          </View>
         </View>
       )}
 
@@ -186,15 +190,15 @@ export function TransactionsList() {
           <Text style={styles.emptyTitle}>No transactions found</Text>
           <Text style={styles.emptyText}>
             {filter === 'all' 
-              ? "You haven't added any transactions yet."
-              : `No ${filter} transactions found.`
+              ? "No transactions yet"
+              : `No ${filter} transactions`
             }
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'add-transaction' })}
           >
-            <Text style={styles.emptyButtonText}>Add Your First Transaction</Text>
+            <Text style={styles.emptyButtonText}>Add Transaction</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -279,8 +283,8 @@ const styles = StyleSheet.create({
   },
   transactionCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   transactionContent: {
     flexDirection: 'row',
@@ -293,29 +297,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   categoryIcon: {
-    fontSize: 24,
+    fontSize: 18,
   },
   transactionInfo: {
     flex: 1,
   },
   transactionDescription: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   transactionCategory: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   transactionDate: {
     fontSize: 12,
@@ -325,25 +329,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   originalAmount: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#9ca3af',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   deleteButton: {
-    padding: 12,
+    padding: 8,
     backgroundColor: '#ef4444',
-    borderRadius: 8,
-    minWidth: 40,
+    borderRadius: 6,
+    minWidth: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteIcon: {
-    fontSize: 16,
+    fontSize: 14,
   },
   emptyState: {
     alignItems: 'center',
@@ -381,17 +385,15 @@ const styles = StyleSheet.create({
   accountFilterContainer: {
     marginBottom: 16,
   },
-  accountFilterLabel: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: 12,
+  accountFilterWrapper: {
+    position: 'relative',
   },
   accountFilterScroll: {
     maxHeight: 50,
   },
   accountFilterContent: {
     paddingRight: 20,
+    paddingLeft: 4,
   },
   accountFilterButton: {
     flexDirection: 'row',
@@ -421,5 +423,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     marginBottom: 4,
+  },
+  scrollHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });

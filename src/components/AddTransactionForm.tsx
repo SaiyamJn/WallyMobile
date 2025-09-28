@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -17,6 +17,31 @@ export function AddTransactionForm() {
   });
 
   const categories = state.categories.filter(c => c.type === formData.type);
+
+  // Check if accounts exist when component loads
+  useEffect(() => {
+    if (state.accounts.length === 0) {
+      Alert.alert(
+        'No Accounts Found',
+        'You need to create an account before adding transactions. Would you like to create one now?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => dispatch({ type: 'GO_BACK' })
+          },
+          {
+            text: 'Create Account',
+            onPress: () => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })
+          }
+        ]
+      );
+    }
+  }, []);
+
+  const handleCreateAccount = () => {
+    dispatch({ type: 'SET_SCREEN', payload: 'accounts' });
+  };
 
   const handleSubmit = () => {
     if (!formData.amount || !formData.category) {
@@ -152,46 +177,45 @@ export function AddTransactionForm() {
                 keyboardType="numeric"
               />
             </View>
-            <Text style={styles.currencyNote}>
-              Currency: {state.currentCurrency.code}
-            </Text>
           </View>
 
-          {/* Account Selection - For Both Income and Expenses */}
+          {/* Account Selection */}
           <View style={styles.section}>
-            <Text style={styles.label}>Account *</Text>
-            <Text style={styles.sectionDescription}>
-              {formData.type === 'income' 
-                ? 'Select which account this income should be added to'
-                : 'Select which account this expense should be deducted from'
-              }
-            </Text>
-              <View style={styles.accountGrid}>
-                {state.accounts.map((account) => (
-                  <TouchableOpacity
-                    key={account.id}
-                    style={[
-                      styles.accountGridItem,
-                      formData.accountId === account.id && styles.accountGridItemActive
-                    ]}
-                    onPress={() => handleInputChange('accountId', account.id)}
-                  >
-                    <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
-                      <Text style={styles.accountIconText}>{account.icon}</Text>
-                    </View>
-                    <Text style={[
-                      styles.accountText,
-                      formData.accountId === account.id && styles.accountTextActive
-                    ]}>
-                      {account.name}
-                    </Text>
-                    <Text style={styles.accountBalance}>
-                      {state.currentCurrency.symbol}{account.balance.toFixed(2)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            <View style={styles.accountHeader}>
+              <Text style={styles.label}>Account *</Text>
+              <TouchableOpacity
+                style={styles.addAccountButton}
+                onPress={handleCreateAccount}
+              >
+                <Text style={styles.addAccountButtonText}>+ Add Account</Text>
+              </TouchableOpacity>
             </View>
+            <View style={styles.accountGrid}>
+              {state.accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[
+                    styles.accountGridItem,
+                    formData.accountId === account.id && styles.accountGridItemActive
+                  ]}
+                  onPress={() => handleInputChange('accountId', account.id)}
+                >
+                  <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
+                    <Text style={styles.accountIconText}>{account.icon}</Text>
+                  </View>
+                  <Text style={[
+                    styles.accountText,
+                    formData.accountId === account.id && styles.accountTextActive
+                  ]}>
+                    {account.name}
+                  </Text>
+                  <Text style={styles.accountBalance}>
+                    {state.currentCurrency.symbol}{account.balance.toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           {/* Category */}
           <View style={styles.section}>
@@ -222,14 +246,11 @@ export function AddTransactionForm() {
           <View style={styles.section}>
             <Text style={styles.label}>Description</Text>
             <TextInput
-              style={styles.textArea}
+              style={styles.input}
               value={formData.description}
               onChangeText={(text) => handleInputChange('description', text)}
-              placeholder="Enter transaction description (optional)..."
+              placeholder="Description (optional)"
               placeholderTextColor="#9ca3af"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
             />
           </View>
 
@@ -303,23 +324,23 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
   },
   cardTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#ffffff',
-    marginBottom: 12,
+    marginBottom: 8,
     fontWeight: '600',
   },
   typeSelector: {
@@ -373,10 +394,22 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     marginTop: 8,
   },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#9ca3af',
+  accountHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  addAccountButton: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  addAccountButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   accountGrid: {
     flexDirection: 'row',
@@ -387,12 +420,12 @@ const styles = StyleSheet.create({
   accountGridItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 8,
     backgroundColor: '#202020ff',
-    borderRadius: 12,
+    borderRadius: 10,
     width: '48%', // 2 columns with some spacing
-    minHeight: 100,
+    minHeight: 80,
   },
   accountGridItemActive: {
     backgroundColor: '#3e3e3eff',
@@ -400,15 +433,15 @@ const styles = StyleSheet.create({
     borderColor: '#10b981',
   },
   accountIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   accountIconText: {
-    fontSize: 20,
+    fontSize: 16,
     color: '#ffffff',
   },
   accountText: {
@@ -435,22 +468,22 @@ const styles = StyleSheet.create({
   categoryGridItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    marginBottom: 8,
+    padding: 12,
+    marginBottom: 6,
     backgroundColor: '#202020ff',
-    borderRadius: 12,
+    borderRadius: 10,
     width: '32%', // 3 columns with some spacing
-    minHeight: 80,
+    minHeight: 70,
   },
   categoryGridItemActive: {
     backgroundColor: '#3e3e3eff',
   },
   categoryIcon: {
-    fontSize: 36,
-    marginBottom: 8,
+    fontSize: 28,
+    marginBottom: 6,
   },
   categoryText: {
-    fontSize: 8,
+    fontSize: 10,
     color: '#9ca3af',
     textAlign: 'center',
     fontWeight: '500',
@@ -470,23 +503,23 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 8,
+    padding: 12,
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 14,
     borderWidth: 1,
     borderColor: '#333333',
   },
   submitButton: {
     backgroundColor: '#10b981',
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: 8,
+    padding: 14,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 16,
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

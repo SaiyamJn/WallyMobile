@@ -254,13 +254,16 @@ export function Reports() {
         {/* Account Filter */}
         {state.accounts.length > 0 && (
           <View style={styles.accountFilterContainer}>
-            <Text style={styles.accountFilterLabel}>Account:</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.accountFilterScroll}
-              contentContainerStyle={styles.accountFilterContent}
-            >
+            {state.accounts.length > 2 && (
+              <Text style={styles.scrollHint}>← Swipe to see all accounts →</Text>
+            )}
+            <View style={styles.accountFilterWrapper}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={state.accounts.length > 2}
+                style={styles.accountFilterScroll}
+                contentContainerStyle={styles.accountFilterContent}
+              >
               <TouchableOpacity
                 style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
                 onPress={() => {
@@ -287,7 +290,8 @@ export function Reports() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
         )}
 
@@ -376,9 +380,9 @@ export function Reports() {
       {filteredTransactions.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyTitle}>No data for this period</Text>
+          <Text style={styles.emptyTitle}>No data</Text>
           <Text style={styles.emptyText}>
-            Add some transactions to see your financial reports and analytics.
+            Add transactions to see reports
           </Text>
         </View>
       )}
@@ -463,8 +467,8 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   summaryHeader: {
     flexDirection: 'row',
@@ -531,8 +535,8 @@ const styles = StyleSheet.create({
   },
   topCategoriesCard: {
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   topCategoryItem: {
     flexDirection: 'row',
@@ -652,17 +656,15 @@ const styles = StyleSheet.create({
   accountFilterContainer: {
     marginBottom: 16,
   },
-  accountFilterLabel: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: 12,
+  accountFilterWrapper: {
+    position: 'relative',
   },
   accountFilterScroll: {
     maxHeight: 50,
   },
   accountFilterContent: {
     paddingRight: 20,
+    paddingLeft: 4,
   },
   accountFilterButton: {
     flexDirection: 'row',
@@ -687,5 +689,11 @@ const styles = StyleSheet.create({
   },
   accountFilterTextActive: {
     color: '#ffffff',
+  },
+  scrollHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });

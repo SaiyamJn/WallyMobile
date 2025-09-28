@@ -64,7 +64,6 @@ export function CategoryManagement() {
 
   const renderCategoryList = (categories: Category[], title: string) => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.categoriesList}>
         {categories.map((category) => (
           <View key={category.id} style={styles.categoryItem}>
@@ -102,19 +101,19 @@ export function CategoryManagement() {
 
       {!showAddForm ? (
         <>
-          {renderCategoryList(expenseCategories, 'Expense Categories')}
-          {renderCategoryList(incomeCategories, 'Income Categories')}
+          {renderCategoryList(expenseCategories, 'Expense')}
+          {renderCategoryList(incomeCategories, 'Income')}
           
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setShowAddForm(true)}
           >
-            <Text style={styles.addButtonText}>Add New Category</Text>
+            <Text style={styles.addButtonText}>+ Add Category</Text>
           </TouchableOpacity>
         </>
       ) : (
         <View style={styles.addForm}>
-          <Text style={styles.formTitle}>Add New Category</Text>
+          <Text style={styles.formTitle}>Add Category</Text>
           
           {/* Category Name */}
           <View style={styles.inputGroup}>
@@ -123,7 +122,7 @@ export function CategoryManagement() {
               style={styles.input}
               value={newCategory.name}
               onChangeText={(text) => setNewCategory({...newCategory, name: text})}
-              placeholder="Enter category name"
+              placeholder="Category name"
             />
           </View>
 
@@ -243,27 +242,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   backButton: {
-    marginRight: 16,
-    padding: 8,
+    marginRight: 12,
+    padding: 6,
     backgroundColor: '#202020ff',
-    borderRadius: 12,
+    borderRadius: 8,
   },
   backIcon: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#ffffff',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
   },
