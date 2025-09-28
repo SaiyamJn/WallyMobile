@@ -197,8 +197,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_SCREEN':
       // Don't add to history if it's the same screen
       if (state.currentScreen === action.payload) {
+        console.log('SET_SCREEN: Same screen, no change needed');
         return state;
       }
+      console.log('SET_SCREEN: Changing from', state.currentScreen, 'to', action.payload);
       return {
         ...state,
         currentScreen: action.payload,

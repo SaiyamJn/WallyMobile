@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, PanResponder, Dimensions, Animated, Text, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, PanResponder, Dimensions, Animated, Text, ActivityIndicator, Image, BackHandler } from 'react-native';
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import { Dashboard } from './src/components/Dashboard';
 import { TransactionsList } from './src/components/TransactionsList';
@@ -18,6 +18,7 @@ function AppContent() {
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const swipeAnimation = useRef(new Animated.Value(0)).current;
+  const currentScreenRef = useRef(state.currentScreen);
 
   // Show loading screen for 2 seconds
   useEffect(() => {
@@ -27,13 +28,67 @@ function AppContent() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Update current screen ref when state changes
+  useEffect(() => {
+    currentScreenRef.current = state.currentScreen;
+  }, [state.currentScreen]);
+
+  // Handle Android back button
+  useEffect(() => {
+    const backAction = () => {
+      // Don't handle back button during loading
+      if (isLoading) {
+        return false;
+      }
+
+      // If we're on a main screen, exit the app
+      const mainScreens = ['dashboard', 'transactions', 'accounts', 'reports', 'settings'];
+      if (mainScreens.includes(state.currentScreen)) {
+        return false; // Let the system handle app exit
+      }
+
+      // Otherwise, go back in navigation history
+      dispatch({ type: 'GO_BACK' });
+      return true; // Prevent default back behavior
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [state.currentScreen, isLoading, dispatch]);
   
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: (_, gestureState) => {
+        // Start capturing immediately for horizontal gestures
+        const isHorizontalSwipe = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        return isHorizontalSwipe && Math.abs(gestureState.dx) > 10;
+      },
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only respond to horizontal swipes with sufficient movement
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 30;
+        // Always capture horizontal swipes
+        const isHorizontalSwipe = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        const hasEnoughMovement = Math.abs(gestureState.dx) > 20;
+        const isFastSwipe = Math.abs(gestureState.vx) > 0.3;
+        
+        const shouldCapture = isHorizontalSwipe && (hasEnoughMovement || isFastSwipe);
+        
+        if (shouldCapture) {
+          console.log('Pan responder activated:', {
+            dx: gestureState.dx,
+            dy: gestureState.dy,
+            vx: gestureState.vx,
+            isHorizontalSwipe,
+            hasEnoughMovement,
+            isFastSwipe
+          });
+        }
+        
+        return shouldCapture;
+      },
+      onPanResponderTerminationRequest: () => {
+        // Don't terminate if we've started a swipe
+        return false;
       },
       onPanResponderGrant: () => {
         // Reset animation when gesture starts
@@ -54,12 +109,13 @@ function AppContent() {
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        const { dx } = gestureState;
-        const swipeThreshold = 50;
+        const { dx, vx } = gestureState;
+        const swipeThreshold = 30; // Further reduced threshold for easier swiping
+        const velocityThreshold = 0.1; // Further reduced velocity threshold
         
         // Don't allow swiping on certain screens
         const nonSwipeableScreens = ['add-transaction', 'categories'];
-        if (nonSwipeableScreens.includes(state.currentScreen)) {
+        if (nonSwipeableScreens.includes(currentScreenRef.current)) {
           // Reset animation
           Animated.timing(swipeAnimation, {
             toValue: 0,
@@ -70,16 +126,34 @@ function AppContent() {
           return;
         }
         
-        if (Math.abs(dx) > swipeThreshold) {
+        // Check if it's a valid swipe (either distance or velocity)
+        const isValidSwipe = Math.abs(dx) > swipeThreshold || Math.abs(vx) > velocityThreshold;
+        
+        if (isValidSwipe) {
           const screens = ['dashboard', 'transactions', 'accounts', 'reports', 'settings'];
-          const currentIndex = screens.indexOf(state.currentScreen);
+          const currentScreen = currentScreenRef.current;
+          const currentIndex = screens.indexOf(currentScreen);
+          
+          console.log('Swipe detected:', {
+            currentScreen: currentScreen,
+            currentIndex,
+            dx,
+            vx,
+            isValidSwipe,
+            screens,
+            navigationHistory: state.navigationHistory
+          });
           
           if (dx > 0 && currentIndex > 0) {
             // Swipe right - go to previous screen
+            console.log('Swipe right - going to:', screens[currentIndex - 1]);
             dispatch({ type: 'SET_SCREEN', payload: screens[currentIndex - 1] as any });
           } else if (dx < 0 && currentIndex < screens.length - 1) {
             // Swipe left - go to next screen
+            console.log('Swipe left - going to:', screens[currentIndex + 1]);
             dispatch({ type: 'SET_SCREEN', payload: screens[currentIndex + 1] as any });
+          } else {
+            console.log('Swipe ignored - at boundary or invalid direction');
           }
         }
         
