@@ -8,9 +8,17 @@ export function TransactionsList() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
   const { alertState, hideAlert, showDeleteAlert } = useCustomAlert();
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [localSelectedAccountId, setLocalSelectedAccountId] = useState<string | null>(state.selectedAccountId);
+
+  // Use context selectedAccountId if available, otherwise use local state
+  const selectedAccountId = state.selectedAccountId !== null ? state.selectedAccountId : localSelectedAccountId;
 
   const filteredTransactions = state.transactions
-    .filter(t => filter === 'all' || t.type === filter)
+    .filter(t => {
+      const typeMatch = filter === 'all' || t.type === filter;
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return typeMatch && accountMatch;
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleDeleteTransaction = (id: string) => {
@@ -37,6 +45,46 @@ export function TransactionsList() {
           <Text style={styles.addButtonText}>Add New</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Account Filter */}
+      {state.accounts.length > 0 && (
+        <View style={styles.accountFilterContainer}>
+          <Text style={styles.accountFilterLabel}>Filter by Account:</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.accountFilterScroll}
+            contentContainerStyle={styles.accountFilterContent}
+          >
+            <TouchableOpacity
+              style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
+              onPress={() => {
+                setLocalSelectedAccountId(null);
+                dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: null });
+              }}
+            >
+              <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
+                All Accounts
+              </Text>
+            </TouchableOpacity>
+            {state.accounts.map((account) => (
+              <TouchableOpacity
+                key={account.id}
+                style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                onPress={() => {
+                  setLocalSelectedAccountId(account.id);
+                  dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
+                }}
+              >
+                <Text style={styles.accountFilterIcon}>{account.icon}</Text>
+                <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
+                  {account.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
@@ -92,6 +140,11 @@ export function TransactionsList() {
                     <View style={styles.transactionInfo}>
                       <Text style={styles.transactionDescription}>{transaction.description}</Text>
                       <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                      {transaction.accountId && (
+                        <Text style={styles.transactionAccount}>
+                          {state.accounts.find(a => a.id === transaction.accountId)?.name || 'Unknown Account'}
+                        </Text>
+                      )}
                       <Text style={styles.transactionDate}>
                         {new Date(transaction.date).toLocaleDateString('en-US', {
                           weekday: 'short',
@@ -324,5 +377,49 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  accountFilterContainer: {
+    marginBottom: 16,
+  },
+  accountFilterLabel: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  accountFilterScroll: {
+    maxHeight: 50,
+  },
+  accountFilterContent: {
+    paddingRight: 20,
+  },
+  accountFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#202020ff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  accountFilterButtonActive: {
+    backgroundColor: '#3e3e3eff',
+  },
+  accountFilterIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  accountFilterText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountFilterTextActive: {
+    color: '#ffffff',
+  },
+  transactionAccount: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
   },
 });

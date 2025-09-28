@@ -5,19 +5,22 @@ import { useApp } from '../contexts/AppContext';
 const { width } = Dimensions.get('window');
 
 export function Reports() {
-  const { state, convertAmount, formatCurrency } = useApp();
+  const { state, convertAmount, formatCurrency, dispatch } = useApp();
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'income'>('overview');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(state.selectedAccountId);
 
   // Calculate date range
   const now = new Date();
   const daysAgo = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === '90d' ? 90 : 365;
   const startDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
-  // Filter transactions by timeframe
-  const filteredTransactions = state.transactions.filter(t => 
-    new Date(t.date) >= startDate
-  );
+  // Filter transactions by timeframe and account
+  const filteredTransactions = state.transactions.filter(t => {
+    const dateMatch = new Date(t.date) >= startDate;
+    const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+    return dateMatch && accountMatch;
+  });
 
   // Calculate comprehensive statistics
   const totalIncome = filteredTransactions
@@ -247,6 +250,47 @@ export function Reports() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>Reports & Analytics</Text>
+        
+        {/* Account Filter */}
+        {state.accounts.length > 0 && (
+          <View style={styles.accountFilterContainer}>
+            <Text style={styles.accountFilterLabel}>Account:</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.accountFilterScroll}
+              contentContainerStyle={styles.accountFilterContent}
+            >
+              <TouchableOpacity
+                style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
+                onPress={() => {
+                  setSelectedAccountId(null);
+                  dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: null });
+                }}
+              >
+                <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
+                  All Accounts
+                </Text>
+              </TouchableOpacity>
+              {state.accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                  onPress={() => {
+                    setSelectedAccountId(account.id);
+                    dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
+                  }}
+                >
+                  <Text style={styles.accountFilterIcon}>{account.icon}</Text>
+                  <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
+                    {account.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.timeframeSelector}>
           {timeframeOptions.map((option) => (
             <TouchableOpacity
@@ -604,5 +648,44 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  accountFilterContainer: {
+    marginBottom: 16,
+  },
+  accountFilterLabel: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  accountFilterScroll: {
+    maxHeight: 50,
+  },
+  accountFilterContent: {
+    paddingRight: 20,
+  },
+  accountFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#202020ff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  accountFilterButtonActive: {
+    backgroundColor: '#3e3e3eff',
+  },
+  accountFilterIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  accountFilterText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountFilterTextActive: {
+    color: '#ffffff',
   },
 });

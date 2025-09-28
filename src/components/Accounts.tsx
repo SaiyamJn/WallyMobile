@@ -77,28 +77,48 @@ export function Accounts() {
 
   const renderAccountItem = (account: Account) => (
     <View key={account.id} style={styles.accountCard}>
-      <View style={styles.accountHeader}>
-        <View style={styles.accountLeft}>
-          <View 
-            style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
-          >
-            <Text style={styles.accountIcon}>{account.icon}</Text>
+      <TouchableOpacity
+        style={styles.accountClickableArea}
+        onPress={() => {
+          // Navigate to transactions with this account filtered
+          dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'transactions', accountId: account.id } });
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.accountHeader}>
+          <View style={styles.accountLeft}>
+            <View 
+              style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
+            >
+              <Text style={styles.accountIcon}>{account.icon}</Text>
+            </View>
+            <View style={styles.accountInfo}>
+              <Text style={styles.accountName}>{account.name}</Text>
+              <Text style={styles.accountType}>{accountTypeOptions.find(t => t.value === account.type)?.label}</Text>
+              {account.description && (
+                <Text style={styles.accountDescription}>{account.description}</Text>
+              )}
+            </View>
           </View>
-          <View style={styles.accountInfo}>
-            <Text style={styles.accountName}>{account.name}</Text>
-            <Text style={styles.accountType}>{accountTypeOptions.find(t => t.value === account.type)?.label}</Text>
-            {account.description && (
-              <Text style={styles.accountDescription}>{account.description}</Text>
-            )}
+          <View style={styles.accountActions}>
+            <TouchableOpacity
+              style={styles.viewTransactionsButton}
+              onPress={() => {
+                // Navigate to transactions with this account filtered
+                dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'transactions', accountId: account.id } });
+              }}
+            >
+              <Text style={styles.viewTransactionsText}>View Transactions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteAccount(account.id)}
+            >
+              <Text style={styles.deleteIcon}>🗑️</Text>
+            </TouchableOpacity>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteAccount(account.id)}
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
       
       <View style={styles.accountBalance}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
@@ -664,5 +684,24 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  accountClickableArea: {
+    // No additional styles needed, just for touch handling
+  },
+  accountActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewTransactionsButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  viewTransactionsText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

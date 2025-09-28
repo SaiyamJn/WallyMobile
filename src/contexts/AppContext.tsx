@@ -9,6 +9,7 @@ interface AppState {
   currentCurrency: Currency;
   currentScreen: Screen;
   navigationHistory: Screen[];
+  selectedAccountId: string | null;
 }
 
 type AppAction =
@@ -21,6 +22,8 @@ type AppAction =
   | { type: 'UPDATE_ACCOUNT_BALANCE'; payload: { accountId: string; amount: number } }
   | { type: 'SET_CURRENCY'; payload: Currency }
   | { type: 'SET_SCREEN'; payload: Screen }
+  | { type: 'SET_SCREEN_WITH_ACCOUNT'; payload: { screen: Screen; accountId: string | null } }
+  | { type: 'SET_SELECTED_ACCOUNT'; payload: string | null }
   | { type: 'GO_BACK' }
   | { type: 'LOAD_DATA'; payload: Partial<AppState> }
   | { type: 'CLEAR_ALL_DATA' };
@@ -99,7 +102,8 @@ const initialState: AppState = {
       category: 'Salary',
       description: 'Monthly salary',
       date: '2024-01-15',
-      currency: 'INR'
+      currency: 'INR',
+      accountId: '1'
     },
     {
       id: '2',
@@ -108,7 +112,8 @@ const initialState: AppState = {
       category: 'Food & Dining',
       description: 'Lunch at restaurant',
       date: '2024-01-16',
-      currency: 'INR'
+      currency: 'INR',
+      accountId: '1'
     },
     {
       id: '3',
@@ -117,14 +122,16 @@ const initialState: AppState = {
       category: 'Shopping',
       description: 'Groceries',
       date: '2024-01-16',
-      currency: 'INR'
+      currency: 'INR',
+      accountId: '1'
     }
   ],
   categories: defaultCategories,
   accounts: defaultAccounts,
   currentCurrency: currencies.find(c => c.code === 'INR') || currencies[0],
   currentScreen: 'dashboard',
-  navigationHistory: ['dashboard']
+  navigationHistory: ['dashboard'],
+  selectedAccountId: null
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -195,6 +202,25 @@ function appReducer(state: AppState, action: AppAction): AppState {
         currentScreen: action.payload,
         navigationHistory: [...state.navigationHistory, action.payload]
       };
+    case 'SET_SCREEN_WITH_ACCOUNT':
+      // Don't add to history if it's the same screen
+      if (state.currentScreen === action.payload.screen) {
+        return {
+          ...state,
+          selectedAccountId: action.payload.accountId
+        };
+      }
+      return {
+        ...state,
+        currentScreen: action.payload.screen,
+        selectedAccountId: action.payload.accountId,
+        navigationHistory: [...state.navigationHistory, action.payload.screen]
+      };
+    case 'SET_SELECTED_ACCOUNT':
+      return {
+        ...state,
+        selectedAccountId: action.payload
+      };
     case 'GO_BACK':
       if (state.navigationHistory.length > 1) {
         const newHistory = [...state.navigationHistory];
@@ -221,7 +247,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...initialState,
         currentScreen: 'dashboard',
-        navigationHistory: ['dashboard']
+        navigationHistory: ['dashboard'],
+        selectedAccountId: null
       };
     default:
       return state;
