@@ -26,10 +26,10 @@ export function Accounts() {
     { value: 'trip', label: 'Trip', icon: '✈️' },
     { value: 'savings', label: 'Savings', icon: '💳' },
     { value: 'investment', label: 'Investment', icon: '📊' },
-    { value: 'other', label: 'Other', icon: '💳' },
+    { value: 'other', label: 'Other', icon: '🍿' },
   ];
 
-  const iconOptions = ['✈️', '💳', '📊', '💳', '🏦', '💎', '🎯', '🚀', '⭐', '🔒', '💼', '🏠', '🎮', '📚', '🎨', '🎵'];
+  const iconOptions = ['✈️', '💳', '📊', '🍿', '🏦', '💎', '🎯', '🚀', '⭐', '🔒', '💼', '🏠', '🎮', '📚', '🎨', '🎵'];
 
 
   const handleAddAccount = () => {

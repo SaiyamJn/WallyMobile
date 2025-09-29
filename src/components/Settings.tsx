@@ -106,7 +106,7 @@ export function Settings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
+            <Text style={styles.infoValue}>2.0.0</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total Transactions</Text>

@@ -1,50 +1,84 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 
 const { width } = Dimensions.get('window');
 
+
 export function Reports() {
   const { state, convertAmount, formatCurrency, dispatch } = useApp();
-  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'income'>('overview');
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(state.selectedAccountId);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<'income' | 'expenses'>('expenses');
+  const [selectedPeriod, setSelectedPeriod] = useState<'weekly' | 'monthly' | 'yearly' | 'period'>('monthly');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
+  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarViewDate, setCalendarViewDate] = useState(new Date());
 
-  // Calculate date range
-  const now = new Date();
-  const daysAgo = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === '90d' ? 90 : 365;
-  const startDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  // Get date range based on selected period
+  const getDateRange = () => {
+    const now = new Date();
+    
+    switch (selectedPeriod) {
+      case 'weekly':
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay()); // Start of current week
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6); // End of current week
+        return { start: startOfWeek, end: endOfWeek };
+      
+      case 'monthly':
+        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        return { start: monthStart, end: monthEnd };
+      
+      case 'yearly':
+        const yearStart = new Date(currentMonth.getFullYear(), 0, 1);
+        const yearEnd = new Date(currentMonth.getFullYear(), 11, 31);
+        return { start: yearStart, end: yearEnd };
+      
+      case 'period':
+        if (customStartDate && customEndDate) {
+          return { start: customStartDate, end: customEndDate };
+        }
+        // Fallback to current month if no custom dates
+        const fallbackStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const fallbackEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        return { start: fallbackStart, end: fallbackEnd };
+      
+      default:
+        const defaultStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const defaultEnd = new Date(currentMonth.getMonth() + 1, 0);
+        return { start: defaultStart, end: defaultEnd };
+    }
+  };
 
-  // Filter transactions by timeframe and account
-  const filteredTransactions = state.transactions.filter(t => {
-    const dateMatch = new Date(t.date) >= startDate;
-    const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-    return dateMatch && accountMatch;
+  const { start: periodStart, end: periodEnd } = getDateRange();
+  
+  // Filter transactions for selected period
+  const periodTransactions = state.transactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return transactionDate >= periodStart && transactionDate <= periodEnd;
   });
 
-  // Calculate comprehensive statistics
-  const totalIncome = filteredTransactions
+  // Calculate totals
+  const totalIncome = periodTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + convertAmount(t.amount, t.currency, state.currentCurrency.code), 0);
 
-  const totalExpense = filteredTransactions
+  const totalExpense = periodTransactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + convertAmount(t.amount, t.currency, state.currentCurrency.code), 0);
 
-  const netIncome = totalIncome - totalExpense;
-  const savingsRate = totalIncome > 0 ? ((netIncome / totalIncome) * 100) : 0;
-
-  // Calculate average daily spending
-  const dailyExpenses = totalExpense / daysAgo;
-  const averageTransactionAmount = filteredTransactions.length > 0 
-    ? (totalIncome + totalExpense) / filteredTransactions.length 
-    : 0;
-
-  // Calculate category breakdown for expenses
+  // Calculate expense categories for pie chart
   const expenseCategories = state.categories
     .filter(c => c.type === 'expense')
     .map(category => {
-      const categoryTransactions = filteredTransactions.filter(
+      const categoryTransactions = periodTransactions.filter(
         t => t.type === 'expense' && t.category === category.name
       );
       const total = categoryTransactions.reduce((sum, t) => {
@@ -57,189 +91,243 @@ export function Reports() {
         value: total,
         icon: category.icon,
         color: category.color,
-        count: categoryTransactions.length,
         percentage: totalExpense > 0 ? (total / totalExpense) * 100 : 0
       };
     })
     .filter(c => c.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  // Calculate income categories
-  const incomeCategories = state.categories
-    .filter(c => c.type === 'income')
-    .map(category => {
-      const categoryTransactions = filteredTransactions.filter(
-        t => t.type === 'income' && t.category === category.name
+  // Calculate income by account with categories
+  const incomeByAccount = state.accounts
+    .map(account => {
+      const accountTransactions = periodTransactions.filter(
+        t => t.type === 'income' && t.accountId === account.id
       );
-      const total = categoryTransactions.reduce((sum, t) => {
+      const total = accountTransactions.reduce((sum, t) => {
         const convertedAmount = convertAmount(t.amount, t.currency, state.currentCurrency.code);
         return sum + convertedAmount;
       }, 0);
+
+      // Get income categories for this account
+      const accountIncomeCategories = state.categories
+        .filter(c => c.type === 'income')
+        .map(category => {
+          const categoryTransactions = accountTransactions.filter(
+            t => t.category === category.name
+          );
+          const categoryTotal = categoryTransactions.reduce((sum, t) => {
+            const convertedAmount = convertAmount(t.amount, t.currency, state.currentCurrency.code);
+            return sum + convertedAmount;
+          }, 0);
+          
+          return {
+            name: category.name,
+            value: categoryTotal,
+            icon: category.icon,
+            color: category.color,
+            percentage: total > 0 ? (categoryTotal / total) * 100 : 0
+          };
+        })
+        .filter(c => c.value > 0)
+        .sort((a, b) => b.value - a.value);
       
       return {
-        name: category.name,
+        name: account.name,
         value: total,
-        icon: category.icon,
-        color: category.color,
-        count: categoryTransactions.length,
-        percentage: totalIncome > 0 ? (total / totalIncome) * 100 : 0
+        icon: '💳',
+        color: account.color || '#10b981',
+        percentage: totalIncome > 0 ? (total / totalIncome) * 100 : 0,
+        accountId: account.id,
+        categories: accountIncomeCategories
       };
     })
-    .filter(c => c.value > 0)
+    .filter(a => a.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  // Calculate top spending categories
-  const topExpenseCategory = expenseCategories[0];
-  const topIncomeCategory = incomeCategories[0];
+  // Prepare data for pie chart
+  const pieData = expenseCategories.map((category, index) => ({
+    name: category.name,
+    population: Math.round(category.value), // Ensure integer values
+    color: category.color,
+    legendFontColor: '#ffffff',
+    legendFontSize: 12,
+  }));
 
-  const timeframeOptions = [
-    { value: '7d', label: '7D' },
-    { value: '30d', label: '30D' },
-    { value: '90d', label: '90D' },
-    { value: '1y', label: '1Y' },
+  // Fallback data for testing
+  const testPieData = [
+    {
+      name: 'Food',
+      population: 100,
+      color: '#ef4444',
+      legendFontColor: '#ffffff',
+      legendFontSize: 12,
+    },
+    {
+      name: 'Transport',
+      population: 50,
+      color: '#3b82f6',
+      legendFontColor: '#ffffff',
+      legendFontSize: 12,
+    }
   ];
 
-  const tabOptions = [
-    { value: 'overview', label: 'Overview', icon: '📊' },
-    { value: 'expenses', label: 'Expenses', icon: '💸' },
-    { value: 'income', label: 'Income', icon: '💰' },
-  ];
+  const formatMonthYear = (date: Date) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
 
-  const renderProgressBar = (percentage: number, color: string) => (
-    <View style={styles.progressBarContainer}>
-      <View style={[styles.progressBar, { width: `${Math.min(percentage, 100)}%`, backgroundColor: color }]} />
-    </View>
-  );
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const newMonth = new Date(currentMonth);
+    if (direction === 'prev') {
+      newMonth.setMonth(newMonth.getMonth() - 1);
+    } else {
+      newMonth.setMonth(newMonth.getMonth() + 1);
+    }
+    setCurrentMonth(newMonth);
+  };
 
-  const renderOverviewTab = () => (
-    <>
-      {/* Key Metrics */}
-      <View style={styles.metricsGrid}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Savings Rate</Text>
-          <Text style={[styles.metricValue, { color: savingsRate >= 0 ? '#10b981' : '#ef4444' }]}>
-            {savingsRate.toFixed(1)}%
+  const handlePeriodSelect = (period: 'weekly' | 'monthly' | 'yearly' | 'period') => {
+    setSelectedPeriod(period);
+    setShowDropdown(false);
+    if (period === 'period') {
+      setShowDatePicker(true);
+      setDatePickerMode('start');
+      setCalendarViewDate(new Date());
+      setSelectedDate(new Date());
+    }
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    
+    if (datePickerMode === 'start') {
+      setCustomStartDate(date);
+      setDatePickerMode('end');
+      // Keep date picker open for end date selection
+    } else {
+      setCustomEndDate(date);
+      setShowDatePicker(false);
+    }
+  };
+
+  const handleMonthChange = (newDate: Date) => {
+    setCalendarViewDate(newDate);
+  };
+
+  const renderCalendarDays = (viewDate: Date) => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    const days = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 42; i++) {
+      const dayNumber = i - firstDayOfWeek + 1;
+      const currentDate = new Date(year, month, dayNumber);
+      const isCurrentMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
+      const isToday = isCurrentMonth && 
+        currentDate.getDate() === today.getDate() &&
+        currentDate.getMonth() === today.getMonth() &&
+        currentDate.getFullYear() === today.getFullYear();
+      
+      const isSelected = isCurrentMonth && 
+        selectedDate.getDate() === currentDate.getDate() &&
+        selectedDate.getMonth() === currentDate.getMonth() &&
+        selectedDate.getFullYear() === currentDate.getFullYear();
+      
+      days.push(
+        <TouchableOpacity
+          key={i}
+          style={[
+            styles.calendarDay,
+            !isCurrentMonth && styles.calendarDayOtherMonth,
+            isToday && styles.calendarDayToday,
+            isSelected && styles.calendarDaySelected
+          ]}
+          onPress={() => {
+            if (isCurrentMonth) {
+              handleDateSelect(currentDate);
+            }
+          }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+        >
+          <Text style={[
+            styles.calendarDayText,
+            !isCurrentMonth && styles.calendarDayTextOtherMonth,
+            isToday && styles.calendarDayTextToday,
+            isSelected && styles.calendarDayTextSelected
+          ]}>
+            {currentDate.getDate()}
           </Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Daily Average</Text>
-          <Text style={styles.metricValue}>{formatCurrency(dailyExpenses)}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Avg Transaction</Text>
-          <Text style={styles.metricValue}>{formatCurrency(averageTransactionAmount)}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Total Transactions</Text>
-          <Text style={styles.metricValue}>{filteredTransactions.length}</Text>
-        </View>
-      </View>
+        </TouchableOpacity>
+      );
+    }
+    
+    return days;
+  };
 
-      {/* Top Categories */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Top Categories</Text>
-        <View style={styles.topCategoriesCard}>
-          {topExpenseCategory && (
-            <View style={styles.topCategoryItem}>
-              <View style={styles.topCategoryLeft}>
-                <Text style={styles.topCategoryIcon}>{topExpenseCategory.icon}</Text>
-                <View>
-                  <Text style={styles.topCategoryName}>Top Expense</Text>
-                  <Text style={styles.topCategorySubName}>{topExpenseCategory.name}</Text>
-                </View>
-              </View>
-              <Text style={styles.topCategoryAmount}>{formatCurrency(topExpenseCategory.value)}</Text>
-            </View>
-          )}
-          {topIncomeCategory && (
-            <View style={styles.topCategoryItem}>
-              <View style={styles.topCategoryLeft}>
-                <Text style={styles.topCategoryIcon}>{topIncomeCategory.icon}</Text>
-                <View>
-                  <Text style={styles.topCategoryName}>Top Income</Text>
-                  <Text style={styles.topCategorySubName}>{topIncomeCategory.name}</Text>
-                </View>
-              </View>
-              <Text style={styles.topCategoryAmount}>{formatCurrency(topIncomeCategory.value)}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </>
-  );
+  const formatPeriodDisplay = () => {
+    switch (selectedPeriod) {
+      case 'weekly':
+        return 'Weekly';
+      case 'monthly':
+        return 'Monthly';
+      case 'yearly':
+        return 'Yearly';
+      case 'period':
+        if (customStartDate && customEndDate) {
+          return `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`;
+        }
+        return 'Custom Period';
+      default:
+        return 'Monthly';
+    }
+  };
 
-  const renderExpensesTab = () => (
-    <>
-      {/* Expense Categories with Progress Bars */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Expense Breakdown</Text>
-        <View style={styles.categoriesList}>
-          {expenseCategories.map((category, index) => (
-            <View key={category.name} style={styles.categoryItem}>
-              <View style={styles.categoryLeft}>
-                <View 
-                  style={[styles.categoryColorDot, { backgroundColor: category.color }]}
-                />
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryName}>{category.name}</Text>
-                  <Text style={styles.categoryCount}>
-                    {category.count} transaction{category.count !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.categoryRight}>
-                <Text style={styles.categoryAmount}>
-                  {formatCurrency(category.value)}
-                </Text>
-                <Text style={styles.categoryPercentage}>
-                  {category.percentage.toFixed(1)}%
-                </Text>
-                {renderProgressBar(category.percentage, category.color)}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    </>
-  );
+  const handleCategoryPress = (categoryName: string, type: 'income' | 'expense', accountId?: string) => {
+    let categoryTransactions;
+    
+    if (type === 'income' && accountId) {
+      // For income categories within an account, filter by both category and account
+      categoryTransactions = periodTransactions.filter(t => 
+        t.type === 'income' && t.category === categoryName && t.accountId === accountId
+      );
+    } else {
+      // For expense categories or general income categories
+      categoryTransactions = periodTransactions.filter(t => 
+        t.type === type && t.category === categoryName
+      );
+    }
+    
+    dispatch({ 
+      type: 'SET_SCREEN_WITH_CATEGORY', 
+      payload: { 
+        screen: 'category-transactions', 
+        categoryName, 
+        transactions: categoryTransactions 
+      } 
+    });
+  };
 
-  const renderIncomeTab = () => (
-    <>
-      {/* Income Categories with Progress Bars */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Income Breakdown</Text>
-        <View style={styles.categoriesList}>
-          {incomeCategories.map((category, index) => (
-            <View key={category.name} style={styles.categoryItem}>
-              <View style={styles.categoryLeft}>
-                <View 
-                  style={[styles.categoryColorDot, { backgroundColor: category.color }]}
-                />
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryName}>{category.name}</Text>
-                  <Text style={styles.categoryCount}>
-                    {category.count} transaction{category.count !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.categoryRight}>
-                <Text style={styles.categoryAmount}>
-                  {formatCurrency(category.value)}
-                </Text>
-                <Text style={styles.categoryPercentage}>
-                  {category.percentage.toFixed(1)}%
-                </Text>
-                {renderProgressBar(category.percentage, category.color)}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    </>
-  );
-
+  const handleAccountPress = (accountName: string, accountId: string) => {
+    const accountTransactions = periodTransactions.filter(t => 
+      t.type === 'income' && t.accountId === accountId
+    );
+    
+    dispatch({ 
+      type: 'SET_SCREEN_WITH_CATEGORY', 
+      payload: { 
+        screen: 'category-transactions', 
+        categoryName: accountName, 
+        transactions: accountTransactions 
+      } 
+    });
+  };
 
   return (
     <ScrollView 
@@ -248,136 +336,193 @@ export function Reports() {
       showsVerticalScrollIndicator={false}
       bounces={false}
     >
+      {/* Header with month navigation */}
       <View style={styles.header}>
-        <Text style={styles.title}>Reports & Analytics</Text>
+        <View style={styles.monthNavigation}>
+          <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navButton}>
+            <Text style={styles.navIcon}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.monthText}>{formatMonthYear(currentMonth)}</Text>
+          <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navButton}>
+            <Text style={styles.navIcon}>›</Text>
+          </TouchableOpacity>
+        </View>
         
-        {/* Account Filter */}
-        {state.accounts.length > 0 && (
-          <View style={styles.accountFilterContainer}>
-            {state.accounts.length > 2 && (
-              <Text style={styles.scrollHint}>← Swipe to see all accounts →</Text>
-            )}
-            <View style={styles.accountFilterWrapper}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={state.accounts.length > 2}
-                style={styles.accountFilterScroll}
-                contentContainerStyle={styles.accountFilterContent}
+        <View style={styles.dropdownWrapper}>
+          <TouchableOpacity 
+            style={styles.dropdownContainer}
+            onPress={() => setShowDropdown(!showDropdown)}
+          >
+            <Text style={styles.dropdownText}>{formatPeriodDisplay()}</Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
+          
+          {showDropdown && (
+            <View style={styles.dropdownMenu}>
+              <TouchableOpacity 
+                style={styles.dropdownItem}
+                onPress={() => handlePeriodSelect('weekly')}
               >
-              <TouchableOpacity
-                style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
-                onPress={() => {
-                  setSelectedAccountId(null);
-                  dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: null });
-                }}
-              >
-                <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
-                  All Accounts
-                </Text>
+                <Text style={styles.dropdownItemText}>Weekly</Text>
               </TouchableOpacity>
-              {state.accounts.map((account) => (
-                <TouchableOpacity
-                  key={account.id}
-                  style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
-                  onPress={() => {
-                    setSelectedAccountId(account.id);
-                    dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
-                  }}
-                >
-                  <Text style={styles.accountFilterIcon}>{account.icon}</Text>
-                  <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
-                    {account.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              </ScrollView>
+              
+              <TouchableOpacity 
+                style={styles.dropdownItem}
+                onPress={() => handlePeriodSelect('monthly')}
+              >
+                <Text style={styles.dropdownItemText}>Monthly</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.dropdownItem}
+                onPress={() => handlePeriodSelect('yearly')}
+              >
+                <Text style={styles.dropdownItemText}>Yearly</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.dropdownItem}
+                onPress={() => handlePeriodSelect('period')}
+              >
+                <Text style={styles.dropdownItemText}>Custom Period</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        )}
-
-        <View style={styles.timeframeSelector}>
-          {timeframeOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.timeframeButton,
-                timeframe === option.value && styles.timeframeButtonActive
-              ]}
-              onPress={() => setTimeframe(option.value as typeof timeframe)}
-            >
-              <Text style={[
-                styles.timeframeText,
-                timeframe === option.value && styles.timeframeTextActive
-              ]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          )}
         </View>
       </View>
 
-      {/* Tab Navigation */}
+      {/* Income/Expenses Tabs */}
       <View style={styles.tabContainer}>
-        {tabOptions.map((tab) => (
-          <TouchableOpacity
-            key={tab.value}
-            style={[
-              styles.tabButton,
-              activeTab === tab.value && styles.tabButtonActive
-            ]}
-            onPress={() => setActiveTab(tab.value as typeof activeTab)}
-          >
-            <Text style={styles.tabIcon}>{tab.icon}</Text>
-            <Text style={[
-              styles.tabText,
-              activeTab === tab.value && styles.tabTextActive
-            ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Summary Cards */}
-      <View style={styles.summaryCards}>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryIcon}>📈</Text>
-            <Text style={styles.summaryLabel}>Total Income</Text>
-          </View>
-          <Text style={styles.incomeAmount}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'income' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('income')}
+        >
+          <Text style={[styles.tabText, activeTab === 'income' && styles.tabTextActive]}>
+            Income
+          </Text>
+          <Text style={styles.tabAmount}>
             {formatCurrency(totalIncome)}
           </Text>
-        </View>
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryIcon}>📉</Text>
-            <Text style={styles.summaryLabel}>Total Expenses</Text>
-          </View>
-          <Text style={styles.expenseAmount}>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'expenses' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('expenses')}
+        >
+          <Text style={[styles.tabText, activeTab === 'expenses' && styles.tabTextActive]}>
+            Expenses
+          </Text>
+          <Text style={styles.tabAmount}>
             {formatCurrency(totalExpense)}
           </Text>
-        </View>
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryIcon}>💰</Text>
-            <Text style={styles.summaryLabel}>Net Income</Text>
-          </View>
-          <Text style={[styles.netAmount, { color: netIncome >= 0 ? '#10b981' : '#ef4444' }]}>
-            {formatCurrency(netIncome)}
-          </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Tab Content */}
-      {activeTab === 'overview' && renderOverviewTab()}
-      {activeTab === 'expenses' && renderExpensesTab()}
-      {activeTab === 'income' && renderIncomeTab()}
+      {/* Category Distribution Chart */}
+      {activeTab === 'expenses' && (
+        <View style={styles.chartContainer}>
+          <View style={styles.distributionChart}>
+            <Text style={styles.chartTitle}>Expense Distribution</Text>
+            <View style={styles.totalDisplay}>
+              <Text style={styles.totalLabel}>Total Expenses</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(totalExpense)}</Text>
+            </View>
+            
+            {/* Category bars */}
+            <View style={styles.categoryBars}>
+              {expenseCategories.map((category, index) => (
+                <TouchableOpacity 
+                  key={category.name} 
+                  style={styles.categoryBar}
+                  onPress={() => handleCategoryPress(category.name, 'expense')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.categoryBarHeader}>
+                    <View style={styles.categoryBarLeft}>
+                      <Text style={styles.categoryBarIcon}>{category.icon}</Text>
+                      <Text style={styles.categoryBarName}>{category.name}</Text>
+                    </View>
+                    <Text style={styles.categoryBarAmount}>{formatCurrency(category.value)}</Text>
+                  </View>
+                  <View style={styles.categoryBarProgress}>
+                    <View 
+                      style={[
+                        styles.categoryBarFill, 
+                        { 
+                          width: `${category.percentage}%`,
+                          backgroundColor: category.color
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.categoryBarPercentage}>{category.percentage.toFixed(1)}%</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
+
+
+      {/* Income view */}
+      {activeTab === 'income' && (
+        <View style={styles.incomeContainer}>
+          <Text style={styles.incomeTitle}>Income by Account</Text>
+          <View style={styles.totalDisplay}>
+            <Text style={styles.totalLabel}>Total Income</Text>
+            <Text style={styles.totalAmount}>{formatCurrency(totalIncome)}</Text>
+          </View>
+          
+          {/* Account cards */}
+          {incomeByAccount.map((account, index) => (
+            <View key={account.accountId} style={styles.accountCard}>
+              <View style={styles.accountCardHeader}>
+                <View style={styles.accountCardLeft}>
+                  <Text style={styles.accountCardIcon}>{account.icon}</Text>
+                  <Text style={styles.accountCardName}>{account.name}</Text>
+                </View>
+                <Text style={styles.accountCardAmount}>{formatCurrency(account.value)}</Text>
+              </View>
+              
+              {/* Categories within this account */}
+              {account.categories.length > 0 && (
+                <View style={styles.accountCategories}>
+                  {account.categories.map((category, catIndex) => (
+                    <TouchableOpacity 
+                      key={`${account.accountId}-${category.name}`}
+                      style={styles.categoryBar}
+                      onPress={() => handleCategoryPress(category.name, 'income', account.accountId)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.categoryBarHeader}>
+                        <View style={styles.categoryBarLeft}>
+                          <Text style={styles.categoryBarIcon}>{category.icon}</Text>
+                          <Text style={styles.categoryBarName}>{category.name}</Text>
+                        </View>
+                        <Text style={styles.categoryBarAmount}>{formatCurrency(category.value)}</Text>
+                      </View>
+                      <View style={styles.categoryBarProgress}>
+                        <View 
+                          style={[
+                            styles.categoryBarFill, 
+                            { 
+                              width: `${category.percentage}%`,
+                              backgroundColor: category.color
+                            }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.categoryBarPercentage}>{category.percentage.toFixed(1)}%</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* No Data State */}
-      {filteredTransactions.length === 0 && (
+      {periodTransactions.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📊</Text>
           <Text style={styles.emptyTitle}>No data</Text>
@@ -386,6 +531,83 @@ export function Reports() {
           </Text>
         </View>
       )}
+
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.datePickerOverlay}>
+            <View style={styles.datePickerContainer}>
+              <Text style={styles.datePickerTitle}>
+                Select {datePickerMode === 'start' ? 'Start' : 'End'} Date
+              </Text>
+              
+              <View style={styles.calendarContainer}>
+                <View style={styles.calendarHeader}>
+                  <TouchableOpacity
+                    style={styles.calendarNavButton}
+                    onPress={() => {
+                      const newDate = new Date(calendarViewDate);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      handleMonthChange(newDate);
+                    }}
+                  >
+                    <Text style={styles.calendarNavText}>‹</Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={styles.calendarMonthText}>
+                    {calendarViewDate.toLocaleDateString('en-US', { 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })}
+                  </Text>
+                  
+                  <TouchableOpacity
+                    style={styles.calendarNavButton}
+                    onPress={() => {
+                      const newDate = new Date(calendarViewDate);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      handleMonthChange(newDate);
+                    }}
+                  >
+                    <Text style={styles.calendarNavText}>›</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.calendarGrid}>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <Text key={day} style={styles.calendarDayHeader}>{day}</Text>
+                  ))}
+                  
+                  {renderCalendarDays(calendarViewDate)}
+                </View>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.cancelDateButton}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.cancelDateButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Dropdown Overlay */}
+      {showDropdown && (
+        <TouchableOpacity 
+          style={styles.dropdownOverlay}
+          onPress={() => setShowDropdown(false)}
+          activeOpacity={1}
+        />
+      )}
+
     </ScrollView>
   );
 }
@@ -401,236 +623,159 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
+    zIndex: 1000,
   },
-  title: {
-    fontSize: 28,
+  monthNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  navButton: {
+    padding: 8,
+  },
+  navIcon: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  monthText: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 20,
+    marginHorizontal: 16,
   },
-  timeframeSelector: {
+  dropdownContainer: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  timeframeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    alignItems: 'center',
     backgroundColor: '#202020ff',
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  timeframeButtonActive: {
-    backgroundColor: '#3e3e3eff',
-  },
-  timeframeText: {
-    color: '#9ca3af',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  timeframeTextActive: {
+  dropdownText: {
     color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  dropdownIcon: {
+    color: '#9ca3af',
+    fontSize: 12,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 6,
     marginBottom: 24,
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    position: 'relative',
   },
   tabButtonActive: {
-    backgroundColor: '#3e3e3eff',
-  },
-  tabIcon: {
-    fontSize: 16,
-    marginRight: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: '#ef4444',
   },
   tabText: {
     color: '#9ca3af',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
   },
   tabTextActive: {
     color: '#ffffff',
   },
-  summaryCards: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  summaryCard: {
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 16,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#9ca3af',
-    fontWeight: '500',
-  },
-  incomeAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10b981',
-  },
-  expenseAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ef4444',
-  },
-  netAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  metricCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  metricValue: {
+  tabAmount: {
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
+    marginTop: 4,
   },
-  section: {
+  chartContainer: {
+    alignItems: 'center',
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  topCategoriesCard: {
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 16,
-  },
-  topCategoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3e3e3eff',
-  },
-  topCategoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  topCategoryIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  topCategoryName: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  topCategorySubName: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
-  topCategoryAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  categoriesList: {
+  distributionChart: {
     backgroundColor: '#202020ff',
     borderRadius: 16,
     padding: 20,
+    width: '100%',
   },
-  categoryItem: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3e3e3eff',
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryColorDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  categoryIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  categoryInfo: {
-    flex: 1,
-  },
-  categoryName: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  categoryCount: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  categoryRight: {
-    alignItems: 'flex-end',
-  },
-  categoryAmount: {
+  chartTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  totalDisplay: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: '#333333',
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#9ca3af',
     marginBottom: 4,
   },
-  categoryPercentage: {
-    fontSize: 12,
-    color: '#9ca3af',
+  totalAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  categoryBars: {
+    gap: 16,
+  },
+  categoryBar: {
+    marginBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+  },
+  categoryBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  progressBarContainer: {
-    width: 100,
-    height: 4,
-    backgroundColor: '#3e3e3eff',
-    borderRadius: 2,
-    overflow: 'hidden',
+  categoryBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  progressBar: {
+  categoryBarIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  categoryBarName: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  categoryBarAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  categoryBarProgress: {
+    height: 8,
+    backgroundColor: '#333333',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  categoryBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 4,
+  },
+  categoryBarPercentage: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'right',
   },
   emptyState: {
     alignItems: 'center',
@@ -653,47 +798,219 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-  accountFilterContainer: {
+  // Income account card styles
+  incomeContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  incomeTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
     marginBottom: 16,
   },
-  accountFilterWrapper: {
-    position: 'relative',
+  accountCard: {
+    backgroundColor: '#202020ff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
   },
-  accountFilterScroll: {
-    maxHeight: 50,
+  accountCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
   },
-  accountFilterContent: {
-    paddingRight: 20,
-    paddingLeft: 4,
-  },
-  accountFilterButton: {
+  accountCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#202020ff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    flex: 1,
+  },
+  accountCardIcon: {
+    fontSize: 20,
     marginRight: 12,
   },
-  accountFilterButtonActive: {
-    backgroundColor: '#3e3e3eff',
+  accountCardName: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
-  accountFilterIcon: {
+  accountCardAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#10b981',
+  },
+  accountCategories: {
+    gap: 12,
+  },
+  // Dropdown styles
+  dropdownWrapper: {
+    position: 'relative',
+    zIndex: 1000,
+    marginBottom: 20,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 45,
+    right: 0,
+    backgroundColor: '#202020ff',
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 150,
+    borderWidth: 1,
+    borderColor: '#333333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 1001,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownItemText: {
     fontSize: 16,
-    marginRight: 8,
+    color: '#ffffff',
+    fontWeight: '500',
   },
-  accountFilterText: {
-    color: '#9ca3af',
-    fontSize: 14,
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    backgroundColor: 'transparent',
+  },
+  // Date picker styles
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerContainer: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    margin: 20,
+    alignItems: 'center',
+    minWidth: 280,
+    maxWidth: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  calendarContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  calendarNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#404040',
+  },
+  calendarNavText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
-  accountFilterTextActive: {
+  calendarMonthText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#ffffff',
-  },
-  scrollHint: {
-    fontSize: 12,
-    color: '#9ca3af',
     textAlign: 'center',
-    marginBottom: 8,
+    flex: 1,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 4,
+  },
+  calendarDayHeader: {
+    width: '14.28%',
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#9ca3af',
+    paddingVertical: 6,
+    letterSpacing: 0.5,
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    margin: 0.5,
+    minHeight: 28,
+  },
+  calendarDayOtherMonth: {
+    opacity: 0.2,
+  },
+  calendarDayToday: {
+    backgroundColor: '#10b981',
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  calendarDaySelected: {
+    backgroundColor: '#3b82f6',
+    borderWidth: 1,
+    borderColor: '#2563eb',
+  },
+  calendarDayText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  calendarDayTextOtherMonth: {
+    color: '#6b7280',
+  },
+  calendarDayTextToday: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  calendarDayTextSelected: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  cancelDateButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#404040',
+  },
+  cancelDateButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

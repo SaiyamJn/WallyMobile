@@ -24,16 +24,36 @@ export function Dashboard() {
 
   const balance = totalIncome - totalExpense;
 
-  // Recent transactions (last 5)
-  const recentTransactions = state.transactions
+  // Group transactions by date for daily view
+  const transactionsByDate = state.transactions
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+    .reduce((acc, transaction) => {
+      const date = new Date(transaction.date).toDateString();
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(transaction);
+      return acc;
+    }, {} as Record<string, typeof state.transactions>);
 
-  // Calculate accounts total balance
-  const accountsTotalBalance = state.accounts.reduce((sum, account) => {
-    const convertedBalance = convertAmount(account.balance, account.currency, currentCurrency.code);
-    return sum + convertedBalance;
-  }, 0);
+  const formatDate = (date: Date) => {
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+    return `${day} ${dayName} ${month.toString().padStart(2, '0')}.${year}`;
+  };
+
+  const getCategoryIcon = (categoryName: string) => {
+    const category = state.categories.find(c => c.name === categoryName);
+    return category?.icon || '💰';
+  };
+
+  const getCategoryColor = (categoryName: string) => {
+    const category = state.categories.find(c => c.name === categoryName);
+    return category?.color || '#6b7280';
+  };
+
 
   return (
     <View style={styles.container}>
@@ -86,109 +106,79 @@ export function Dashboard() {
           </View>
         </View>
 
-        {/* Accounts Section */}
-        <TouchableOpacity 
-          style={styles.accountsCard}
-          onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.accountsHeader}>
-            <Text style={styles.cardTitle}>Accounts</Text>
+        {/* Recent Transactions Heading */}
+        <Text style={styles.sectionHeading}>Recent Transactions</Text>
+
+        {/* Empty State */}
+        {state.transactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No transactions yet</Text>
+            <Text style={styles.emptySubtext}>Add your first transaction to get started</Text>
           </View>
-          
-          {state.accounts.length > 0 ? (
-            <>
-              <View style={styles.accountsTotal}>
-                <Text style={styles.accountsTotalLabel}>Total Balance</Text>
-                <Text style={styles.accountsTotalAmount}>
-                  {formatCurrency(accountsTotalBalance)}
-                </Text>
-              </View>
-              
-              <View style={styles.accountsList}>
-                {state.accounts.slice(0, 3).map((account) => {
-                  const convertedBalance = convertAmount(account.balance, account.currency, currentCurrency.code);
+        ) : (
+          /* Daily Transactions */
+          Object.entries(transactionsByDate).map(([dateString, transactions]) => {
+            const date = new Date(dateString);
+            const dayIncome = transactions
+              .filter(t => t.type === 'income')
+              .reduce((sum, t) => {
+                const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
+                return sum + convertedAmount;
+              }, 0);
+            const dayExpense = transactions
+              .filter(t => t.type === 'expense')
+              .reduce((sum, t) => {
+                const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
+                return sum + convertedAmount;
+              }, 0);
+            const dayTotal = dayIncome - dayExpense;
+
+            return (
+              <View key={dateString} style={styles.daySection}>
+                <View style={styles.dayHeader}>
+                  <Text style={styles.dayDate}>{formatDate(date)}</Text>
+                  <View style={styles.dayAmounts}>
+                    {dayIncome > 0 && (
+                      <Text style={styles.dayIncome}>
+                        +{formatCurrency(dayIncome)}
+                      </Text>
+                    )}
+                    <Text style={[styles.dayTotal, { color: dayTotal >= 0 ? '#10b981' : '#ef4444' }]}>
+                      {formatCurrency(Math.abs(dayTotal))}
+                    </Text>
+                  </View>
+                </View>
+                
+                {transactions.map((transaction) => {
+                  const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
                   return (
-                    <View key={account.id} style={styles.accountItem}>
-                      <View style={styles.accountLeft}>
-                        <View 
-                          style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
-                        >
-                          <Text style={styles.accountIcon}>{account.icon}</Text>
+                    <TouchableOpacity 
+                      key={transaction.id} 
+                      style={styles.transactionItem}
+                      onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.transactionLeft}>
+                        <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(transaction.category) + '20' }]}>
+                          <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category)}</Text>
                         </View>
-                        <View style={styles.accountInfo}>
-                          <Text style={styles.accountName}>{account.name}</Text>
-                          <Text style={styles.accountType}>{account.type}</Text>
+                        <View style={styles.transactionInfo}>
+                          <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                          <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                          <Text style={styles.transactionType}>UP</Text>
                         </View>
                       </View>
-                      <Text style={styles.accountBalance}>
-                        {formatCurrency(convertedBalance)}
+                      <Text style={[styles.transactionAmount, { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }]}>
+                        {formatCurrency(convertedAmount)}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
-              
-              {state.accounts.length > 3 && (
-                <View style={styles.viewAllButton}>
-                  <Text style={styles.viewAllText}>
-                    +{state.accounts.length - 3} more accounts
-                  </Text>
-                </View>
-              )}
-            </>
-          ) : (
-            <View style={styles.emptyAccountsState}>
-              <Text style={styles.emptyAccountsText}>No accounts yet</Text>
-              <Text style={styles.createAccountHint}>Tap to create your first account</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            );
+          })
+        )}
 
-        {/* Recent Transactions */}
-        <View style={styles.transactionsCard}>
-          <Text style={styles.cardTitle}>Recent Transactions</Text>
-          {recentTransactions.length > 0 ? (
-            recentTransactions.map((transaction) => {
-              const category = state.categories.find(c => c.name === transaction.category);
-              const convertedAmount = convertAmount(
-                transaction.amount, 
-                transaction.currency, 
-                currentCurrency.code
-              );
-              
-              return (
-                <View key={transaction.id} style={styles.transactionItem}>
-                  <View style={styles.transactionLeft}>
-                    <View style={styles.categoryIconContainer}>
-                      <Text style={styles.categoryIcon}>{category?.icon || '💰'}</Text>
-                    </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                      <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <Text style={[
-                      styles.transactionAmount,
-                      { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }
-                    ]}>
-                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(convertedAmount)}
-                    </Text>
-                    <Text style={styles.transactionDate}>
-                      {new Date(transaction.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No transactions yet</Text>
-              <Text style={styles.emptySubtext}>Start by adding your first transaction!</Text>
-            </View>
-          )}
-        </View>
       </ScrollView>
 
       {/* Floating Add Transaction Button */}
@@ -234,54 +224,54 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   balanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   balanceTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   walletIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   balanceTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#000000',
     fontWeight: '600',
   },
   currencyCode: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '500',
   },
   balanceAmount: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#000000',
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
+    gap: 14,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#202020ff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 14,
+    padding: 16,
     borderLeftWidth: 4,
   },
   incomeCard: {
@@ -293,48 +283,75 @@ const styles = StyleSheet.create({
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 10,
   },
   incomeIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   expenseIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   statLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '500',
   },
   incomeAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#10b981',
   },
   expenseAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#ef4444',
   },
-  transactionsCard: {
-    backgroundColor: '#202020ff',
-    borderRadius: 20,
-    padding: 24,
-  },
-  cardTitle: {
+  sectionHeading: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 20,
+    marginTop: 20,
+  },
+  daySection: {
+    marginBottom: 20,
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+    marginBottom: 8,
+  },
+  dayDate: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  dayAmounts: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  dayIncome: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  dayTotal: {
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: 'bold',
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginVertical: 2,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -342,41 +359,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#27262dff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   categoryIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   transactionInfo: {
     flex: 1,
   },
-  transactionDescription: {
+  transactionCategory: {
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  transactionCategory: {
+  transactionDescription: {
     fontSize: 14,
     color: '#9ca3af',
+    marginBottom: 2,
   },
-  transactionRight: {
-    alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  transactionDate: {
+  transactionType: {
     fontSize: 12,
     color: '#9ca3af',
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',
@@ -391,115 +404,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#6b7280',
-  },
-  accountsCard: {
-    backgroundColor: '#202020ff',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-  },
-  accountsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  accountsTotal: {
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3e3e3eff',
-  },
-  accountsTotalLabel: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginBottom: 8,
-  },
-  accountsTotalAmount: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  accountsList: {
-    gap: 12,
-  },
-  accountItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  accountLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  accountIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  accountIcon: {
-    fontSize: 18,
-  },
-  accountInfo: {
-    flex: 1,
-  },
-  accountName: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  accountType: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textTransform: 'capitalize',
-  },
-  accountBalance: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  viewAllButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  viewAllText: {
-    color: '#10b981',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyAccountsState: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyAccountsText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginBottom: 16,
-  },
-  createAccountButton: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createAccountButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  createAccountHint: {
-    color: '#9ca3af',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
   },
   floatingButton: {
     position: 'absolute',

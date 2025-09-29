@@ -10,10 +10,14 @@ interface AppState {
   currentScreen: Screen;
   navigationHistory: Screen[];
   selectedAccountId: string | null;
+  selectedTransactionId: string | null;
+  selectedCategory: string | null;
+  categoryTransactions: Transaction[];
 }
 
 type AppAction =
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
+  | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
   | { type: 'DELETE_TRANSACTION'; payload: string }
   | { type: 'ADD_CATEGORY'; payload: Category }
   | { type: 'DELETE_CATEGORY'; payload: string }
@@ -23,7 +27,11 @@ type AppAction =
   | { type: 'SET_CURRENCY'; payload: Currency }
   | { type: 'SET_SCREEN'; payload: Screen }
   | { type: 'SET_SCREEN_WITH_ACCOUNT'; payload: { screen: Screen; accountId: string | null } }
+  | { type: 'SET_SCREEN_WITH_TRANSACTION'; payload: { screen: Screen; transactionId: string | null } }
+  | { type: 'SET_SCREEN_WITH_CATEGORY'; payload: { screen: Screen; categoryName: string; transactions: Transaction[] } }
   | { type: 'SET_SELECTED_ACCOUNT'; payload: string | null }
+  | { type: 'SET_SELECTED_TRANSACTION'; payload: string | null }
+  | { type: 'SET_SELECTED_CATEGORY'; payload: string | null }
   | { type: 'GO_BACK' }
   | { type: 'LOAD_DATA'; payload: Partial<AppState> }
   | { type: 'CLEAR_ALL_DATA' };
@@ -95,45 +103,32 @@ const loadFromStorage = async (key: string, defaultValue: any) => {
   }
 };
 
+const clearAllStorage = async () => {
+  try {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.TRANSACTIONS,
+      STORAGE_KEYS.CATEGORIES,
+      STORAGE_KEYS.ACCOUNTS,
+      STORAGE_KEYS.CURRENCY,
+      STORAGE_KEYS.SCREEN,
+      STORAGE_KEYS.NAVIGATION
+    ]);
+  } catch (error) {
+    console.error('Error clearing storage:', error);
+  }
+};
+
 const initialState: AppState = {
-  transactions: [
-    {
-      id: '1',
-      amount: 5000,
-      type: 'income',
-      category: 'Salary',
-      description: 'Monthly salary',
-      date: '2024-01-15',
-      currency: 'INR',
-      accountId: '1'
-    },
-    {
-      id: '2',
-      amount: 45,
-      type: 'expense',
-      category: 'Food & Dining',
-      description: 'Lunch at restaurant',
-      date: '2024-01-16',
-      currency: 'INR',
-      accountId: '1'
-    },
-    {
-      id: '3',
-      amount: 120,
-      type: 'expense',
-      category: 'Shopping',
-      description: 'Groceries',
-      date: '2024-01-16',
-      currency: 'INR',
-      accountId: '1'
-    }
-  ],
+  transactions: [],
   categories: defaultCategories,
-  accounts: defaultAccounts,
+  accounts: [],
   currentCurrency: currencies.find(c => c.code === 'INR') || currencies[0],
   currentScreen: 'dashboard',
   navigationHistory: ['dashboard'],
-  selectedAccountId: null
+  selectedAccountId: null,
+  selectedTransactionId: null,
+  selectedCategory: null,
+  categoryTransactions: []
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -143,32 +138,27 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         transactions: [...state.transactions, action.payload]
       };
-    case 'DELETE_TRANSACTION':
-      console.log('Reducer: DELETE_TRANSACTION called with ID:', action.payload);
-      console.log('Current transactions count:', state.transactions.length);
-      console.log('Current transactions:', state.transactions.map(t => ({ id: t.id, description: t.description })));
-      const filteredTransactions = state.transactions.filter(t => t.id !== action.payload);
-      console.log('Filtered transactions count:', filteredTransactions.length);
-      console.log('Filtered transactions:', filteredTransactions.map(t => ({ id: t.id, description: t.description })));
-      const newState = {
+    case 'UPDATE_TRANSACTION':
+      return {
         ...state,
-        transactions: filteredTransactions
+        transactions: state.transactions.map(t => 
+          t.id === action.payload.id ? action.payload : t
+        )
       };
-      console.log('New state transactions count:', newState.transactions.length);
-      return newState;
+    case 'DELETE_TRANSACTION':
+      return {
+        ...state,
+        transactions: state.transactions.filter(t => t.id !== action.payload)
+      };
     case 'ADD_CATEGORY':
       return {
         ...state,
         categories: [...state.categories, action.payload]
       };
     case 'DELETE_CATEGORY':
-      console.log('Reducer: DELETE_CATEGORY called with ID:', action.payload);
-      console.log('Current categories count:', state.categories.length);
-      const filteredCategories = state.categories.filter(c => c.id !== action.payload);
-      console.log('Filtered categories count:', filteredCategories.length);
       return {
         ...state,
-        categories: filteredCategories
+        categories: state.categories.filter(c => c.id !== action.payload)
       };
     case 'ADD_ACCOUNT':
       return {
@@ -197,10 +187,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_SCREEN':
       // Don't add to history if it's the same screen
       if (state.currentScreen === action.payload) {
-        console.log('SET_SCREEN: Same screen, no change needed');
         return state;
       }
-      console.log('SET_SCREEN: Changing from', state.currentScreen, 'to', action.payload);
       return {
         ...state,
         currentScreen: action.payload,
@@ -225,6 +213,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         selectedAccountId: action.payload
       };
+    case 'SET_SELECTED_TRANSACTION':
+      return {
+        ...state,
+        selectedTransactionId: action.payload
+      };
+    case 'SET_SCREEN_WITH_TRANSACTION':
+      return {
+        ...state,
+        currentScreen: action.payload.screen,
+        selectedTransactionId: action.payload.transactionId,
+        navigationHistory: [...state.navigationHistory, action.payload.screen]
+      };
+    case 'SET_SCREEN_WITH_CATEGORY':
+      return {
+        ...state,
+        currentScreen: action.payload.screen,
+        selectedCategory: action.payload.categoryName,
+        categoryTransactions: action.payload.transactions,
+        navigationHistory: [...state.navigationHistory, action.payload.screen]
+      };
+    case 'SET_SELECTED_CATEGORY':
+      return {
+        ...state,
+        selectedCategory: action.payload
+      };
     case 'GO_BACK':
       if (state.navigationHistory.length > 1) {
         const newHistory = [...state.navigationHistory];
@@ -248,11 +261,16 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...action.payload
       };
     case 'CLEAR_ALL_DATA':
+      // Clear storage asynchronously
+      clearAllStorage();
       return {
         ...initialState,
         currentScreen: 'dashboard',
         navigationHistory: ['dashboard'],
-        selectedAccountId: null
+        selectedAccountId: null,
+        selectedTransactionId: null,
+        selectedCategory: null,
+        categoryTransactions: []
       };
     default:
       return state;
@@ -275,27 +293,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [transactions, categories, accounts, currency] = await Promise.all([
-          loadFromStorage(STORAGE_KEYS.TRANSACTIONS, initialState.transactions),
-          loadFromStorage(STORAGE_KEYS.CATEGORIES, initialState.categories),
-          loadFromStorage(STORAGE_KEYS.ACCOUNTS, initialState.accounts),
-          loadFromStorage(STORAGE_KEYS.CURRENCY, initialState.currentCurrency)
-          // Don't load screen and navigation - always start on dashboard
-        ]);
+        // Check if this is a fresh installation by looking for any existing data
+        const hasExistingData = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        
+        if (hasExistingData) {
+          // Load existing data from storage
+          const [transactions, categories, accounts, currency] = await Promise.all([
+            loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []),
+            loadFromStorage(STORAGE_KEYS.CATEGORIES, defaultCategories),
+            loadFromStorage(STORAGE_KEYS.ACCOUNTS, []),
+            loadFromStorage(STORAGE_KEYS.CURRENCY, initialState.currentCurrency)
+          ]);
 
-        // Dispatch initial data load - always start on dashboard but preserve data
-        dispatch({ type: 'LOAD_DATA', payload: {
-          transactions,
-          categories,
-          accounts,
-          currentCurrency: currency,
-          currentScreen: 'dashboard', // Always start on dashboard
-          navigationHistory: ['dashboard'] // Reset navigation to dashboard
-        }});
+          dispatch({ type: 'LOAD_DATA', payload: {
+            transactions,
+            categories,
+            accounts,
+            currentCurrency: currency,
+            currentScreen: 'dashboard',
+            navigationHistory: ['dashboard']
+          }});
+        } else {
+          // Fresh installation - start with empty data
+          dispatch({ type: 'LOAD_DATA', payload: {
+            transactions: [],
+            categories: defaultCategories,
+            accounts: [],
+            currentCurrency: initialState.currentCurrency,
+            currentScreen: 'dashboard',
+            navigationHistory: ['dashboard']
+          }});
+        }
         
         setIsLoaded(true);
       } catch (error) {
         console.error('Error loading data:', error);
+        // On error, start with clean state
+        dispatch({ type: 'LOAD_DATA', payload: {
+          transactions: [],
+          categories: defaultCategories,
+          accounts: [],
+          currentCurrency: initialState.currentCurrency,
+          currentScreen: 'dashboard',
+          navigationHistory: ['dashboard']
+        }});
         setIsLoaded(true);
       }
     };

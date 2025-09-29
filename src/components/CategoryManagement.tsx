@@ -43,7 +43,6 @@ export function CategoryManagement() {
   };
 
   const handleDeleteCategory = (id: string) => {
-    console.log('Delete category clicked for ID:', id);
     const category = state.categories.find(c => c.id === id);
     const hasTransactions = state.transactions.some(t => t.category === category?.name);
     
@@ -56,7 +55,6 @@ export function CategoryManagement() {
       'Delete Category',
       'Are you sure you want to delete this category?',
       () => {
-        console.log('User confirmed deletion, dispatching DELETE_CATEGORY for ID:', id);
         dispatch({ type: 'DELETE_CATEGORY', payload: id });
       }
     );

@@ -1,21 +1,21 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, PanResponder, Dimensions, Animated, Text, ActivityIndicator, Image, BackHandler } from 'react-native';
+import { View, StyleSheet, PanResponder, Animated, Text, ActivityIndicator, Image, BackHandler } from 'react-native';
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import { Dashboard } from './src/components/Dashboard';
 import { TransactionsList } from './src/components/TransactionsList';
 import { AddTransactionForm } from './src/components/AddTransactionForm';
+import { EditTransactionForm } from './src/components/EditTransactionForm';
 import { CategoryManagement } from './src/components/CategoryManagement';
 import { Reports } from './src/components/Reports';
 import { Settings } from './src/components/Settings';
 import { Accounts } from './src/components/Accounts';
 import { BottomNavigation } from './src/components/BottomNavigation';
+import { CategoryTransactions } from './src/components/CategoryTransactions';
 
 function AppContent() {
   const { state, dispatch } = useApp();
-  const { width } = Dimensions.get('window');
-  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const swipeAnimation = useRef(new Animated.Value(0)).current;
   const currentScreenRef = useRef(state.currentScreen);
@@ -93,7 +93,6 @@ function AppContent() {
       onPanResponderGrant: () => {
         // Reset animation when gesture starts
         swipeAnimation.setValue(0);
-        setSwipeDirection(null);
       },
       onPanResponderMove: (_, gestureState) => {
         const { dx } = gestureState;
@@ -103,10 +102,7 @@ function AppContent() {
         // Update animation based on swipe progress
         swipeAnimation.setValue(progress);
         
-        // Set direction for visual feedback
-        if (Math.abs(dx) > 30) {
-          setSwipeDirection(dx > 0 ? 'right' : 'left');
-        }
+        // Visual feedback handled by animation
       },
       onPanResponderRelease: (_, gestureState) => {
         const { dx, vx } = gestureState;
@@ -122,7 +118,6 @@ function AppContent() {
             duration: 200,
             useNativeDriver: true,
           }).start();
-          setSwipeDirection(null);
           return;
         }
         
@@ -163,7 +158,6 @@ function AppContent() {
           duration: 200,
           useNativeDriver: true,
         }).start();
-        setSwipeDirection(null);
       },
     })
   ).current;
@@ -176,6 +170,8 @@ function AppContent() {
         return <TransactionsList />;
       case 'add-transaction':
         return <AddTransactionForm />;
+      case 'edit-transaction':
+        return <EditTransactionForm />;
       case 'categories':
         return <CategoryManagement />;
       case 'accounts':
@@ -184,6 +180,11 @@ function AppContent() {
         return <Reports />;
       case 'settings':
         return <Settings />;
+      case 'category-transactions':
+        return <CategoryTransactions 
+          categoryName={state.selectedCategory || ''}
+          onBack={() => dispatch({ type: 'GO_BACK' })}
+        />;
       default:
         return <Dashboard />;
     }
@@ -216,27 +217,6 @@ function AppContent() {
             {renderCurrentScreen()}
             <BottomNavigation />
             
-            {/* Swipe indicator */}
-            {swipeDirection && (
-              <Animated.View 
-                style={[
-                  styles.swipeIndicator,
-                  {
-                    opacity: swipeAnimation,
-                    transform: [{
-                      translateX: swipeAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: swipeDirection === 'left' ? [50, 0] : [-50, 0],
-                      })
-                    }]
-                  }
-                ]}
-              >
-                <Text style={styles.swipeText}>
-                  {swipeDirection === 'left' ? '← Next' : 'Previous →'}
-                </Text>
-              </Animated.View>
-            )}
           </View>
         </View>
       )}
@@ -290,23 +270,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     backgroundColor: '#000000',
-  },
-  swipeIndicator: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginLeft: -50,
-    marginTop: -15,
-    backgroundColor: 'rgba(59, 130, 246, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    zIndex: 1000,
-  },
-  swipeText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 });

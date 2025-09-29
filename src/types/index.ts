@@ -36,4 +36,4 @@ export interface Account {
   createdAt: string;
 }
 
-export type Screen = 'dashboard' | 'transactions' | 'add-transaction' | 'categories' | 'reports' | 'settings' | 'accounts';
+export type Screen = 'dashboard' | 'transactions' | 'add-transaction' | 'edit-transaction' | 'categories' | 'reports' | 'settings' | 'accounts' | 'category-transactions';

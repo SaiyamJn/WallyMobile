@@ -22,13 +22,10 @@ export function TransactionsList() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleDeleteTransaction = (id: string) => {
-    console.log('Delete transaction clicked for ID:', id);
-    
     showDeleteAlert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
       () => {
-        console.log('User confirmed deletion, dispatching DELETE_TRANSACTION for ID:', id);
         dispatch({ type: 'DELETE_TRANSACTION', payload: id });
       }
     );
@@ -130,7 +127,12 @@ export function TransactionsList() {
             );
 
             return (
-              <View key={transaction.id} style={styles.transactionCard}>
+              <TouchableOpacity 
+                key={transaction.id} 
+                style={styles.transactionCard}
+                onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
+                activeOpacity={0.7}
+              >
                 <View style={styles.transactionContent}>
                   <View style={styles.transactionLeft}>
                     <View 
@@ -174,13 +176,16 @@ export function TransactionsList() {
                     )}
                     <TouchableOpacity
                       style={styles.deleteButton}
-                      onPress={() => handleDeleteTransaction(transaction.id)}
+                      onPress={(e) => {
+                        e.stopPropagation(); // Prevent triggering the edit action
+                        handleDeleteTransaction(transaction.id);
+                      }}
                     >
                       <Text style={styles.deleteIcon}>🗑️</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -285,6 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202020ff',
     borderRadius: 12,
     padding: 16,
+    marginVertical: 2,
   },
   transactionContent: {
     flexDirection: 'row',

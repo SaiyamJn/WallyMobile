@@ -42,10 +42,11 @@ A beautiful, offline-first personal finance management app built with React Nati
 ## 🚀 **Getting Started**
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Expo CLI
-- Android Studio (for APK builds)
+- **Node.js** (v18 or higher) - [Download here](https://nodejs.org/)
+- **npm** (comes with Node.js)
+- **Expo CLI** - Install globally: `npm install -g @expo/cli`
+- **Android Studio** (for APK builds) - [Download here](https://developer.android.com/studio)
+- **Expo Go app** (for testing on physical devices) - [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) | [iOS](https://apps.apple.com/app/expo-go/id982107779)
 
 ### Installation
 
@@ -57,19 +58,68 @@ A beautiful, offline-first personal finance management app built with React Nati
 
 2. **Install dependencies**
    ```bash
+   # Install all required packages
    npm install
+   
+   # Or install from requirements.txt (see Dependencies section)
+   npm install $(cat requirements.txt | grep -v '^#' | grep -v '^$' | tr '\n' ' ')
    ```
 
 3. **Start the development server**
    ```bash
+   npm start
+   # or
    npx expo start
    ```
 
 4. **Run on device/simulator**
-   - Scan QR code with Expo Go app (Android/iOS)
-   - Press `a` for Android emulator
-   - Press `i` for iOS simulator
-   - Press `w` for web browser
+   - **Physical Device**: Scan QR code with Expo Go app
+   - **Android Emulator**: Press `a` in terminal
+   - **iOS Simulator**: Press `i` in terminal (macOS only)
+   - **Web Browser**: Press `w` in terminal
+
+### 📦 **Dependencies**
+
+All required dependencies are listed in `requirements.txt` and `package.json`:
+
+#### Core Dependencies
+- **React Native** (0.81.4) - Mobile framework
+- **Expo** (~54.0.0) - Development platform
+- **TypeScript** (~5.9.2) - Type safety
+- **React** (19.1.0) - UI library
+
+#### UI & Navigation
+- **react-native-safe-area-context** - Safe area handling
+- **react-native-screens** - Native screen optimization
+- **react-native-svg** - SVG support
+- **lucide-react-native** - Icon library
+
+#### Data & Storage
+- **@react-native-async-storage/async-storage** - Local storage
+- **@react-native-community/datetimepicker** - Date picker
+- **react-datepicker** - Web date picker
+
+#### Development Tools
+- **@types/react** - TypeScript definitions
+- **Expo CLI** - Development tools
+
+### 🔧 **Quick Setup Commands**
+
+```bash
+# 1. Install Expo CLI globally
+npm install -g @expo/cli
+
+# 2. Install project dependencies
+npm install
+
+# 3. Start development server
+npm start
+
+# 4. Open on specific platform
+npm run android    # Android
+npm run ios        # iOS
+npm run web        # Web
+```
 
 ## 📱 **Building APK**
 
@@ -130,7 +180,9 @@ WallyMobile/
 ├── assets/                 # Images and icons
 ├── app.json               # Expo configuration
 ├── eas.json              # EAS build configuration
-└── package.json          # Dependencies
+├── package.json          # Dependencies
+├── requirements.txt       # All required libraries
+└── README.md             # This file
 ```
 
 ## 🎯 **Key Components**
