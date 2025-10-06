@@ -1,6 +1,25 @@
+> **⚠️ IMPORTANT: Always use the latest development branch for the most up-to-date features and bug fixes!**
+
 # WallyMobile 💰
 
-A beautiful, offline-first personal finance management app built with React Native and Expo. Track your income, expenses, and manage multiple accounts with a sleek dark theme interface.r
+A beautiful, offline-first personal finance management app built with React Native and Expo. Track your income, expenses, and manage multiple accounts with a sleek dark theme interface.
+
+## 🚀 Getting the Latest Version
+
+To get the latest version of the app with all recent improvements and bug fixes:
+
+```bash
+# Switch to the latest development branch
+git checkout feature/ui-improvements-and-cleanup
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm start
+```
+
+**Note**: The main branch may not have the latest features. Always use the latest development branch for the most up-to-date experience.
 
 ## ✨ Features
 
