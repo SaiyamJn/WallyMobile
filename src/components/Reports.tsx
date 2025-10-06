@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 
@@ -290,16 +290,17 @@ export function Reports() {
   };
 
   const handleCategoryPress = (categoryName: string, type: 'income' | 'expense', accountId?: string) => {
+    // Get ALL transactions for this category (not just period transactions)
     let categoryTransactions;
     
     if (type === 'income' && accountId) {
       // For income categories within an account, filter by both category and account
-      categoryTransactions = periodTransactions.filter(t => 
+      categoryTransactions = state.transactions.filter(t => 
         t.type === 'income' && t.category === categoryName && t.accountId === accountId
       );
     } else {
       // For expense categories or general income categories
-      categoryTransactions = periodTransactions.filter(t => 
+      categoryTransactions = state.transactions.filter(t => 
         t.type === type && t.category === categoryName
       );
     }
@@ -618,6 +619,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120,
     paddingTop: 50,

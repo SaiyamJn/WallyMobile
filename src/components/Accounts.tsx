@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { Account } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -157,16 +157,28 @@ export function Accounts() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => dispatch({ type: 'GO_BACK' })}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Accounts</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => dispatch({ type: 'GO_BACK' })}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Accounts</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddForm(true)}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
 
       {!showAddForm ? (
         <>
@@ -185,12 +197,6 @@ export function Accounts() {
             )}
           </View>
 
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowAddForm(true)}
-          >
-            <Text style={styles.addButtonText}>+ Add Account</Text>
-          </TouchableOpacity>
         </>
       ) : (
         <ScrollView 
@@ -326,7 +332,8 @@ export function Accounts() {
         }}
         onCancel={hideInputModal}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -334,6 +341,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 100,
@@ -342,6 +356,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 32,
   },
   backButton: {
@@ -358,6 +373,8 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#ffffff',
+    flex: 1,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
@@ -500,16 +517,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   addButton: {
+    padding: 8,
     backgroundColor: '#10b981',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 8,
+    minWidth: 40,
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
   },
   addButtonText: {
-    color: '#ffffff',
     fontSize: 18,
-    fontWeight: 'bold',
+    color: '#ffffff',
   },
   addFormScrollView: {
     flex: 1,

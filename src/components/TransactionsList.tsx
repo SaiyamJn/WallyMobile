@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
 
 export function TransactionsList() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
@@ -13,26 +14,79 @@ export function TransactionsList() {
   // Use context selectedAccountId if available, otherwise use local state
   const selectedAccountId = state.selectedAccountId !== null ? state.selectedAccountId : localSelectedAccountId;
 
+  // Filter and sort transactions with newest first (same as Dashboard)
   const filteredTransactions = state.transactions
     .filter(t => {
       const typeMatch = filter === 'all' || t.type === filter;
       const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
       return typeMatch && accountMatch;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => {
+      // Handle both full datetime and date-only formats
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      
+      // If dates are the same, use transaction ID as tiebreaker (higher ID = newer)
+      if (dateA === dateB) {
+        return parseInt(b.id) - parseInt(a.id);
+      }
+      
+      return dateB - dateA; // Newest first
+    });
+
+  // Group transactions by date
+  const groupedTransactions = filteredTransactions.reduce((groups, transaction) => {
+    const date = new Date(transaction.date).toDateString();
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(transaction);
+    return groups;
+  }, {} as Record<string, typeof filteredTransactions>);
+
+  // Get sorted dates (newest first)
+  const sortedDates = Object.keys(groupedTransactions).sort((a, b) => {
+    return new Date(b).getTime() - new Date(a).getTime();
+  });
+
 
   const handleDeleteTransaction = (id: string) => {
     showDeleteAlert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
       () => {
+        // Find the transaction to get its account info
+        const transaction = state.transactions.find(t => t.id === id);
+        
+        if (transaction && transaction.accountId) {
+          // Calculate the amount to subtract from account balance
+          const amountToSubtract = transaction.type === 'income' 
+            ? -transaction.amount  // Subtract income
+            : transaction.amount;  // Add back expense
+          
+          // Update account balance
+          dispatch({ 
+            type: 'UPDATE_ACCOUNT_BALANCE', 
+            payload: { 
+              accountId: transaction.accountId, 
+              amount: amountToSubtract
+            } 
+          });
+        }
+        
+        // Delete the transaction
         dispatch({ type: 'DELETE_TRANSACTION', payload: id });
       }
     );
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         <Text style={styles.title}>Transactions</Text>
         <TouchableOpacity
@@ -118,76 +172,69 @@ export function TransactionsList() {
       {/* Transactions List */}
       {filteredTransactions.length > 0 ? (
         <View style={styles.transactionsList}>
-          {filteredTransactions.map((transaction) => {
-            const category = state.categories.find(c => c.name === transaction.category);
-            const convertedAmount = convertAmount(
-              transaction.amount,
-              transaction.currency,
-              state.currentCurrency.code
-            );
+          {sortedDates.map((dateString) => (
+            <View key={dateString} style={styles.dateGroup}>
+              <Text style={styles.dateHeader}>{formatDateHeader(dateString)}</Text>
+              {groupedTransactions[dateString].map((transaction) => {
+                const convertedAmount = convertAmount(
+                  transaction.amount,
+                  transaction.currency,
+                  state.currentCurrency.code
+                );
 
-            return (
-              <TouchableOpacity 
-                key={transaction.id} 
-                style={styles.transactionCard}
-                onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
-                activeOpacity={0.7}
-              >
-                <View style={styles.transactionContent}>
-                  <View style={styles.transactionLeft}>
-                    <View 
-                      style={[
-                        styles.categoryIconContainer,
-                        { backgroundColor: category?.color + '20' }
-                      ]}
-                    >
-                      <Text style={styles.categoryIcon}>{category?.icon || '💰'}</Text>
-                    </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                      <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                      {transaction.accountId && (
-                        <Text style={styles.transactionAccount}>
-                          {state.accounts.find(a => a.id === transaction.accountId)?.name || 'Unknown Account'}
+                return (
+                  <TouchableOpacity 
+                    key={transaction.id} 
+                    style={styles.transactionItem}
+                    onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.transactionLeft}>
+                      <View 
+                        style={[
+                          styles.categoryIconContainer,
+                          { backgroundColor: getCategoryColor(transaction.category, state.categories) + '20' }
+                        ]}
+                      >
+                        <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category, state.categories)}</Text>
+                      </View>
+                      <View style={styles.transactionInfo}>
+                        <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                        <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                        <Text style={styles.transactionTime}>
+                          {formatTime(transaction.date)}
                         </Text>
-                      )}
-                      <Text style={styles.transactionDate}>
-                        {new Date(transaction.date).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </Text>
+                      </View>
                     </View>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <Text style={[
-                      styles.transactionAmount,
-                      { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }
-                    ]}>
-                      {transaction.type === 'income' ? '+' : '-'}
-                      {formatCurrency(convertedAmount)}
-                    </Text>
-                    {transaction.currency !== state.currentCurrency.code && (
-                      <Text style={styles.originalAmount}>
-                        Original: {transaction.currency} {transaction.amount}
-                      </Text>
-                    )}
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={(e) => {
-                        e.stopPropagation(); // Prevent triggering the edit action
-                        handleDeleteTransaction(transaction.id);
-                      }}
-                    >
-                      <Text style={styles.deleteIcon}>🗑️</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                    <View style={styles.transactionRight}>
+                      <View style={styles.amountContainer}>
+                        <Text style={[
+                          styles.transactionAmount,
+                          { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }
+                        ]}>
+                          {formatCurrency(convertedAmount)}
+                        </Text>
+                        {transaction.currency !== state.currentCurrency.code && (
+                          <Text style={styles.originalAmount}>
+                            Original: {transaction.currency} {transaction.amount}
+                          </Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={(e) => {
+                          e.stopPropagation(); // Prevent triggering the edit action
+                          handleDeleteTransaction(transaction.id);
+                        }}
+                      >
+                        <Text style={styles.deleteIcon}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
         </View>
       ) : (
         <View style={styles.emptyState}>
@@ -215,7 +262,8 @@ export function TransactionsList() {
         buttons={alertState.buttons}
         onClose={hideAlert}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -223,16 +271,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 100,
-    marginTop:30,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 16,
   },
   title: {
     fontSize: 28,
@@ -255,7 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202020ff',
     borderRadius: 12,
     padding: 6,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   filterButton: {
     flex: 1,
@@ -279,81 +323,99 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120, // Increased padding to prevent overlap with bottom navigation
     paddingTop: 50,
   },
   transactionsList: {
-    gap: 15,
+    gap: 0,
   },
-  transactionCard: {
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 2,
+  dateGroup: {
+    marginBottom: 24,
   },
-  transactionContent: {
+  dateHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 12,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    marginVertical: 1,
   },
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 8,
   },
   categoryIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   categoryIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
   transactionInfo: {
     flex: 1,
   },
-  transactionDescription: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: 3,
-  },
   transactionCategory: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 2,
+    fontSize: 15,
+    color: '#ffffff',
+    fontWeight: '500',
+    marginBottom: 1,
   },
-  transactionDate: {
-    fontSize: 12,
+  transactionDescription: {
+    fontSize: 13,
     color: '#9ca3af',
+    marginBottom: 1,
+  },
+  transactionTime: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginTop: 1,
   },
   transactionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  amountContainer: {
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   originalAmount: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#9ca3af',
-    marginBottom: 6,
+    marginBottom: 0,
   },
   deleteButton: {
-    padding: 8,
+    padding: 6,
     backgroundColor: '#ef4444',
-    borderRadius: 6,
-    minWidth: 32,
+    borderRadius: 4,
+    minWidth: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteIcon: {
-    fontSize: 14,
+    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
@@ -389,7 +451,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   accountFilterContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   accountFilterWrapper: {
     position: 'relative',

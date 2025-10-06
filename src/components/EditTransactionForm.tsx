@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -7,7 +7,7 @@ import { CustomAlert } from './ui/CustomAlert';
 
 export function EditTransactionForm() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
-  const { alertState, hideAlert, showErrorAlert } = useCustomAlert();
+  const { alertState, hideAlert, showErrorAlert, showDeleteAlert } = useCustomAlert();
   
   // Find the transaction being edited
   const transaction = state.transactions.find(t => t.id === state.selectedTransactionId);
@@ -66,17 +66,46 @@ export function EditTransactionForm() {
       return;
     }
 
+    // Calculate the difference in amount for account balance update
+    const oldAmount = transaction.type === 'income' ? transaction.amount : -transaction.amount;
+    const newAmount = formData.type === 'income' ? parseFloat(formData.amount) : -parseFloat(formData.amount);
+    const amountDifference = newAmount - oldAmount;
+
+    // Create a date with the selected date but preserve the original time if possible
+    const selectedDate = new Date(formData.date);
+    const originalDate = new Date(transaction.date);
+    const transactionDate = new Date(selectedDate);
+    
+    // If the date changed, use current time; otherwise preserve original time
+    if (selectedDate.toDateString() !== originalDate.toDateString()) {
+      const now = new Date();
+      transactionDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    } else {
+      transactionDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds(), originalDate.getMilliseconds());
+    }
+
     const updatedTransaction = {
       ...transaction,
       amount: parseFloat(formData.amount),
       type: formData.type,
       category: formData.category,
       description: formData.description,
-      date: formData.date,
+      date: transactionDate.toISOString(), // Use selected date with appropriate time
       accountId: formData.accountId
     };
 
     dispatch({ type: 'UPDATE_TRANSACTION', payload: updatedTransaction });
+    
+    // Update account balance if there's a difference
+    if (amountDifference !== 0) {
+      dispatch({ 
+        type: 'UPDATE_ACCOUNT_BALANCE', 
+        payload: { 
+          accountId: formData.accountId, 
+          amount: amountDifference
+        } 
+      });
+    }
     
     // Navigate back to previous screen
     dispatch({ type: 'GO_BACK' });
@@ -92,7 +121,7 @@ export function EditTransactionForm() {
       setSelectedDate(selectedDate);
       setFormData(prev => ({ 
         ...prev, 
-        date: selectedDate.toISOString().split('T')[0] 
+        date: selectedDate.toISOString().split('T')[0] // Keep date-only for form display
       }));
     }
   };
@@ -182,20 +211,30 @@ export function EditTransactionForm() {
   const handleDelete = () => {
     if (!transaction) return;
     
-    Alert.alert(
+    showDeleteAlert(
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch({ type: 'DELETE_TRANSACTION', payload: transaction.id });
-            dispatch({ type: 'GO_BACK' });
-          }
+      () => {
+        // Calculate the amount to subtract from account balance
+        const amountToSubtract = transaction.type === 'income' 
+          ? -transaction.amount  // Subtract income
+          : transaction.amount;  // Add back expense
+        
+        // Update account balance
+        if (transaction.accountId) {
+          dispatch({ 
+            type: 'UPDATE_ACCOUNT_BALANCE', 
+            payload: { 
+              accountId: transaction.accountId, 
+              amount: amountToSubtract
+            } 
+          });
         }
-      ]
+        
+        // Delete the transaction
+        dispatch({ type: 'DELETE_TRANSACTION', payload: transaction.id });
+        dispatch({ type: 'GO_BACK' });
+      }
     );
   };
 
@@ -241,6 +280,7 @@ export function EditTransactionForm() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
@@ -604,6 +644,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120,
   },

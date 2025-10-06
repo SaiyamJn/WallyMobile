@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { Category } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -60,8 +60,39 @@ export function CategoryManagement() {
     );
   };
 
+  const handleResetCategories = () => {
+    // Get default category names
+    const defaultCategoryNames = ['Food & Dining', 'Transportation', 'Shopping', 'Entertainment', 'Bills & Utilities', 
+      'Healthcare', 'Salary', 'Freelance', 'Investment', 'Other Income'];
+    
+    // Check if there are any custom categories with transactions
+    const customCategoriesWithTransactions = state.categories.filter(category => {
+      const isCustomCategory = !defaultCategoryNames.includes(category.name);
+      const hasTransactions = state.transactions.some(transaction => transaction.category === category.name);
+      return isCustomCategory && hasTransactions;
+    });
+
+    if (customCategoriesWithTransactions.length > 0) {
+      const categoryNames = customCategoriesWithTransactions.map(cat => cat.name).join(', ');
+      showErrorAlert(
+        `The following custom categories have transactions and will be preserved: ${categoryNames}. All default categories will be restored.`
+      );
+    }
+
+    // Show confirmation dialog using custom alert
+    showDeleteAlert(
+      'Reset Categories',
+      'This will restore all default categories. Custom categories with transactions will be preserved. Continue?',
+      () => {
+        dispatch({ type: 'RESET_CATEGORIES' });
+        showErrorAlert('Categories have been reset to defaults');
+      }
+    );
+  };
+
   const renderCategoryList = (categories: Category[], title: string) => (
     <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.categoriesList}>
         {categories.map((category) => (
           <View key={category.id} style={styles.categoryItem}>
@@ -86,28 +117,46 @@ export function CategoryManagement() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => dispatch({ type: 'GO_BACK' })}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Manage Categories</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => dispatch({ type: 'GO_BACK' })}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.titleLine1}>Manage</Text>
+            <Text style={styles.titleLine2}>Categories</Text>
+          </View>
+          
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setShowAddForm(true)}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={handleResetCategories}
+            >
+              <Text style={styles.resetButtonText}>🔄</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
       {!showAddForm ? (
         <>
           {renderCategoryList(expenseCategories, 'Expense')}
           {renderCategoryList(incomeCategories, 'Income')}
-          
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowAddForm(true)}
-          >
-            <Text style={styles.addButtonText}>+ Add Category</Text>
-          </TouchableOpacity>
         </>
       ) : (
         <View style={styles.addForm}>
@@ -232,7 +281,8 @@ export function CategoryManagement() {
         buttons={alertState.buttons}
         onClose={hideAlert}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -240,13 +290,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 50,
     paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   backButton: {
@@ -259,10 +317,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#ffffff',
   },
-  title: {
-    fontSize: 24,
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  titleLine1: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
+    lineHeight: 22,
+  },
+  titleLine2: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    lineHeight: 22,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   section: {
     marginBottom: 32,
@@ -319,16 +392,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   addButton: {
+    padding: 8,
     backgroundColor: '#10b981',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 8,
+    minWidth: 40,
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
   },
   addButtonText: {
-    color: '#ffffff',
     fontSize: 18,
+    color: '#ffffff',
     fontWeight: 'bold',
+  },
+  resetButton: {
+    padding: 8,
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetButtonText: {
+    fontSize: 18,
+    color: '#ffffff',
   },
   addForm: {
     backgroundColor: '#202020ff',

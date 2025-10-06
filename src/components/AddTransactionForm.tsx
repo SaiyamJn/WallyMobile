@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -7,7 +7,7 @@ import { CustomAlert } from './ui/CustomAlert';
 
 export function AddTransactionForm() {
   const { state, dispatch } = useApp();
-  const { alertState, hideAlert, showErrorAlert } = useCustomAlert();
+  const { alertState, hideAlert, showErrorAlert, showConfirmAlert } = useCustomAlert();
   const [formData, setFormData] = useState({
     amount: '',
     type: 'expense' as 'income' | 'expense',
@@ -22,25 +22,20 @@ export function AddTransactionForm() {
   const [selectedDate, setSelectedDate] = useState(new Date(formData.date));
   const [calendarViewDate, setCalendarViewDate] = useState(new Date(formData.date));
 
+  // Refs for input fields
+  const amountInputRef = useRef<TextInput>(null);
+  const descriptionInputRef = useRef<TextInput>(null);
+
   const categories = state.categories.filter(c => c.type === formData.type);
 
   // Check if accounts exist when component loads
   useEffect(() => {
     if (state.accounts.length === 0) {
-      Alert.alert(
+      showConfirmAlert(
         'No Accounts Found',
         'You need to create an account before adding transactions. Would you like to create one now?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => dispatch({ type: 'GO_BACK' })
-          },
-          {
-            text: 'Create Account',
-            onPress: () => dispatch({ type: 'SET_SCREEN', payload: 'accounts' })
-          }
-        ]
+        () => dispatch({ type: 'SET_SCREEN', payload: 'accounts' }),
+        () => dispatch({ type: 'GO_BACK' })
       );
     }
   }, []);
@@ -55,6 +50,41 @@ export function AddTransactionForm() {
     dispatch({ type: 'SET_SCREEN', payload: 'accounts' });
   };
 
+  // Navigation functions for automatic field progression
+  const focusNextField = (fieldName: string) => {
+    switch (fieldName) {
+      case 'amount':
+        // After amount, dismiss keyboard and open account selection
+        amountInputRef.current?.blur();
+        setTimeout(() => {
+          setShowAccountModal(true);
+        }, 100);
+        break;
+      case 'account':
+        // After account selection, open category selection with small delay to ensure keyboard is dismissed
+        setTimeout(() => {
+          setShowCategoryModal(true);
+        }, 150);
+        break;
+      case 'category':
+        // After category selection, focus description
+        setTimeout(() => {
+          descriptionInputRef.current?.focus();
+        }, 100);
+        break;
+      case 'description':
+        // After description, submit the form
+        handleSubmit();
+        break;
+    }
+  };
+
+  const handleAmountSubmit = () => {
+    if (formData.amount && parseFloat(formData.amount) > 0) {
+      focusNextField('amount');
+    }
+  };
+
   const handleSubmit = () => {
     if (!formData.amount || !formData.category) {
       showErrorAlert('Please fill in amount and category');
@@ -67,13 +97,19 @@ export function AddTransactionForm() {
       return;
     }
 
+    // Create a date with the selected date but current time
+    const selectedDate = new Date(formData.date);
+    const now = new Date();
+    const transactionDate = new Date(selectedDate);
+    transactionDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
     const transaction = {
       id: Date.now().toString(),
       amount: parseFloat(formData.amount),
       type: formData.type,
       category: formData.category,
       description: formData.description,
-      date: formData.date,
+      date: transactionDate.toISOString(), // Use selected date with current time
       currency: state.currentCurrency.code,
       accountId: formData.accountId
     };
@@ -119,7 +155,7 @@ export function AddTransactionForm() {
       setSelectedDate(selectedDate);
       setFormData(prev => ({ 
         ...prev, 
-        date: selectedDate.toISOString().split('T')[0] 
+        date: selectedDate.toISOString().split('T')[0] // Keep date-only for form display
       }));
     }
   };
@@ -223,6 +259,7 @@ export function AddTransactionForm() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
@@ -286,12 +323,16 @@ export function AddTransactionForm() {
             <View style={styles.amountContainer}>
               <Text style={styles.currencySymbol}>{state.currentCurrency.symbol}</Text>
               <TextInput
+                ref={amountInputRef}
                 style={styles.amountInput}
                 value={formData.amount}
                 onChangeText={(text) => handleInputChange('amount', text)}
                 placeholder="0.00"
                 placeholderTextColor="#9ca3af"
                 keyboardType="numeric"
+                returnKeyType="next"
+                onSubmitEditing={handleAmountSubmit}
+                blurOnSubmit={false}
               />
             </View>
           </View>
@@ -352,11 +393,14 @@ export function AddTransactionForm() {
           <View style={styles.section}>
             <Text style={styles.label}>Description</Text>
             <TextInput
+              ref={descriptionInputRef}
               style={styles.input}
               value={formData.description}
               onChangeText={(text) => handleInputChange('description', text)}
               placeholder="Description (optional)"
               placeholderTextColor="#9ca3af"
+              returnKeyType="done"
+              onSubmitEditing={() => focusNextField('description')}
             />
           </View>
 
@@ -389,7 +433,12 @@ export function AddTransactionForm() {
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScrollView}>
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {state.accounts.map((account) => (
                 <TouchableOpacity
                   key={account.id}
@@ -397,9 +446,15 @@ export function AddTransactionForm() {
                     styles.modalItem,
                     formData.accountId === account.id && styles.modalItemActive
                   ]}
-                  onPress={() => {
+                  onPressIn={() => {
                     handleInputChange('accountId', account.id);
                     setShowAccountModal(false);
+                    // Dismiss any active keyboard and proceed to category selection
+                    amountInputRef.current?.blur();
+                    descriptionInputRef.current?.blur();
+                    setTimeout(() => {
+                      focusNextField('account');
+                    }, 200);
                   }}
                 >
                   <View style={[styles.modalItemIcon, { backgroundColor: account.color }]}>
@@ -456,6 +511,10 @@ export function AddTransactionForm() {
                   onPress={() => {
                     handleInputChange('category', category.name);
                     setShowCategoryModal(false);
+                    // Automatically proceed to description field
+                    setTimeout(() => {
+                      focusNextField('category');
+                    }, 100);
                   }}
                 >
                   <Text style={styles.modalCategoryIcon}>{category.icon}</Text>
@@ -572,6 +631,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120, // Increased padding to prevent overlap with bottom navigation
   },
@@ -770,6 +830,9 @@ const styles = StyleSheet.create({
   modalScrollView: {
     maxHeight: 300,
   },
+  modalScrollContent: {
+    paddingBottom: 20,
+  },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -822,6 +885,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
+    marginBottom: 8,
   },
   addAccountModalButtonText: {
     color: '#ffffff',

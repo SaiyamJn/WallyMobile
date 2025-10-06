@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
+import { getCategoryIcon, getCategoryColor, formatDate } from '../utils/transactionUtils';
 
 export function Dashboard() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
@@ -24,35 +25,22 @@ export function Dashboard() {
 
   const balance = totalIncome - totalExpense;
 
-  // Group transactions by date for daily view
-  const transactionsByDate = state.transactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .reduce((acc, transaction) => {
-      const date = new Date(transaction.date).toDateString();
-      if (!acc[date]) {
-        acc[date] = [];
+  // Get the 5 most recent transactions, sorted with newest first
+  const recentTransactions = state.transactions
+    .sort((a, b) => {
+      // Handle both full datetime and date-only formats
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      
+      // If dates are the same, use transaction ID as tiebreaker (higher ID = newer)
+      if (dateA === dateB) {
+        return parseInt(b.id) - parseInt(a.id);
       }
-      acc[date].push(transaction);
-      return acc;
-    }, {} as Record<string, typeof state.transactions>);
+      
+      return dateB - dateA; // Newest first
+    })
+    .slice(0, 5);
 
-  const formatDate = (date: Date) => {
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-    return `${day} ${dayName} ${month.toString().padStart(2, '0')}.${year}`;
-  };
-
-  const getCategoryIcon = (categoryName: string) => {
-    const category = state.categories.find(c => c.name === categoryName);
-    return category?.icon || '💰';
-  };
-
-  const getCategoryColor = (categoryName: string) => {
-    const category = state.categories.find(c => c.name === categoryName);
-    return category?.color || '#6b7280';
-  };
 
 
   return (
@@ -116,65 +104,32 @@ export function Dashboard() {
             <Text style={styles.emptySubtext}>Add your first transaction to get started</Text>
           </View>
         ) : (
-          /* Daily Transactions */
-          Object.entries(transactionsByDate).map(([dateString, transactions]) => {
-            const date = new Date(dateString);
-            const dayIncome = transactions
-              .filter(t => t.type === 'income')
-              .reduce((sum, t) => {
-                const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
-                return sum + convertedAmount;
-              }, 0);
-            const dayExpense = transactions
-              .filter(t => t.type === 'expense')
-              .reduce((sum, t) => {
-                const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
-                return sum + convertedAmount;
-              }, 0);
-            const dayTotal = dayIncome - dayExpense;
-
+          /* Recent Transactions List */
+          recentTransactions.map((transaction) => {
+            const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
+            const transactionDate = new Date(transaction.date);
+            
             return (
-              <View key={dateString} style={styles.daySection}>
-                <View style={styles.dayHeader}>
-                  <Text style={styles.dayDate}>{formatDate(date)}</Text>
-                  <View style={styles.dayAmounts}>
-                    {dayIncome > 0 && (
-                      <Text style={styles.dayIncome}>
-                        +{formatCurrency(dayIncome)}
-                      </Text>
-                    )}
-                    <Text style={[styles.dayTotal, { color: dayTotal >= 0 ? '#10b981' : '#ef4444' }]}>
-                      {formatCurrency(Math.abs(dayTotal))}
-                    </Text>
+              <TouchableOpacity 
+                key={transaction.id} 
+                style={styles.transactionItem}
+                onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.transactionLeft}>
+                  <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(transaction.category, state.categories) + '20' }]}>
+                    <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category, state.categories)}</Text>
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                    <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                    <Text style={styles.transactionDate}>{formatDate(transactionDate)}</Text>
                   </View>
                 </View>
-                
-                {transactions.map((transaction) => {
-                  const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
-                  return (
-                    <TouchableOpacity 
-                      key={transaction.id} 
-                      style={styles.transactionItem}
-                      onPress={() => dispatch({ type: 'SET_SCREEN_WITH_TRANSACTION', payload: { screen: 'edit-transaction', transactionId: transaction.id } })}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.transactionLeft}>
-                        <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(transaction.category) + '20' }]}>
-                          <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category)}</Text>
-                        </View>
-                        <View style={styles.transactionInfo}>
-                          <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                          <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                          <Text style={styles.transactionType}>UP</Text>
-                        </View>
-                      </View>
-                      <Text style={[styles.transactionAmount, { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }]}>
-                        {formatCurrency(convertedAmount)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                <Text style={[styles.transactionAmount, { color: transaction.type === 'income' ? '#10b981' : '#ef4444' }]}>
+                  {formatCurrency(convertedAmount)}
+                </Text>
+              </TouchableOpacity>
             );
           })
         )}
@@ -207,6 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120,
     paddingTop: 50,
@@ -314,36 +270,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 20,
   },
-  daySection: {
-    marginBottom: 20,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-    marginBottom: 8,
-  },
-  dayDate: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  dayAmounts: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  dayIncome: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
-  dayTotal: {
-    fontSize: 14,
-    color: '#ef4444',
-    fontWeight: 'bold',
-  },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -390,6 +316,11 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
   },
   emptyState: {
     alignItems: 'center',

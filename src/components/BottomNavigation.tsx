@@ -17,7 +17,7 @@ export function BottomNavigation() {
   return (
     <View style={styles.container}>
       <View style={styles.navigation}>
-        {navigationItems.map(({ screen, icon, label }) => {
+        {navigationItems.map(({ screen, icon }) => {
           const isActive = state.currentScreen === screen;
           return (
             <TouchableOpacity
@@ -27,9 +27,6 @@ export function BottomNavigation() {
             >
               <Text style={[styles.navIcon, isActive && styles.navIconActive]}>
                 {icon}
-              </Text>
-              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
-                {label}
               </Text>
             </TouchableOpacity>
           );
@@ -62,28 +59,20 @@ const styles = StyleSheet.create({
   navButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
     marginHorizontal: 2,
+    minHeight: 50,
   },
   navButtonActive: {
     backgroundColor: '#3e3e3eff',
   },
   navIcon: {
-    fontSize: 18,
-    marginBottom: 4,
+    fontSize: 24,
   },
   navIconActive: {
     // Icon color is handled by the emoji itself
-  },
-  navLabel: {
-    fontSize: 1,
-    color: '#9ca3af',
-    fontWeight: '500',
-  },
-  navLabelActive: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, PanResponder, Animated, Text, ActivityIndicator, Image, BackHandler } from 'react-native';
+import { View, StyleSheet, PanResponder, Animated, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import { Dashboard } from './src/components/Dashboard';
 import { TransactionsList } from './src/components/TransactionsList';
@@ -213,11 +213,15 @@ function AppContent() {
         <LoadingScreen />
       ) : (
         <View style={styles.container}>
-          <View style={styles.content} {...panResponder.panHandlers}>
+          <KeyboardAvoidingView 
+            style={styles.content}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            {...panResponder.panHandlers}
+          >
             {renderCurrentScreen()}
-            <BottomNavigation />
-            
-          </View>
+          </KeyboardAvoidingView>
+          <BottomNavigation />
         </View>
       )}
     </SafeAreaProvider>

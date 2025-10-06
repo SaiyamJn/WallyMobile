@@ -1,16 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 
 export function Settings() {
   const { state, dispatch, currencies } = useApp();
-  const { alertState, hideAlert, showDeleteAlert } = useCustomAlert();
+  const { alertState, hideAlert, showDeleteAlert, showSuccessAlert } = useCustomAlert();
 
   const handleCurrencyChange = (currency: typeof currencies[0]) => {
     dispatch({ type: 'SET_CURRENCY', payload: currency });
-    Alert.alert('Success', `Currency changed to ${currency.name}`);
+    showSuccessAlert(`Currency changed to ${currency.name}`);
   };
 
   const handleClearData = () => {
@@ -106,7 +106,7 @@ export function Settings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>2.0.0</Text>
+            <Text style={styles.infoValue}>2.1.1</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total Transactions</Text>
@@ -182,6 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120, // Increased padding to prevent overlap with bottom navigation
     paddingTop: 50,

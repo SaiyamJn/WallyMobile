@@ -21,6 +21,7 @@ type AppAction =
   | { type: 'DELETE_TRANSACTION'; payload: string }
   | { type: 'ADD_CATEGORY'; payload: Category }
   | { type: 'DELETE_CATEGORY'; payload: string }
+  | { type: 'RESET_CATEGORIES' }
   | { type: 'ADD_ACCOUNT'; payload: Account }
   | { type: 'DELETE_ACCOUNT'; payload: string }
   | { type: 'UPDATE_ACCOUNT_BALANCE'; payload: { accountId: string; amount: number } }
@@ -159,6 +160,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         categories: state.categories.filter(c => c.id !== action.payload)
+      };
+    case 'RESET_CATEGORIES':
+      // Get custom categories that have transactions (not default categories)
+      const customCategoriesWithTransactions = state.categories.filter(category => {
+        const isCustomCategory = !defaultCategories.some(defaultCat => defaultCat.name === category.name);
+        const hasTransactions = state.transactions.some(transaction => transaction.category === category.name);
+        return isCustomCategory && hasTransactions;
+      });
+      
+      // Always restore all default categories
+      const resetCategories = [...defaultCategories, ...customCategoriesWithTransactions];
+      
+      return {
+        ...state,
+        categories: resetCategories
       };
     case 'ADD_ACCOUNT':
       return {
