@@ -1,4 +1,4 @@
-> **⚠️ IMPORTANT: Always use the latest development branch for the most up-to-date features and bug fixes!**
+**⚠️ IMPORTANT: Always use the latest development branch for the most up-to-date features and bug fixes!**
 
 # WallyMobile 💰
 
