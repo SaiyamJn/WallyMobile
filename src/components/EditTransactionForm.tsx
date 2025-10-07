@@ -4,6 +4,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function EditTransactionForm() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
@@ -246,7 +248,7 @@ export function EditTransactionForm() {
             style={styles.backButton}
             onPress={() => dispatch({ type: 'GO_BACK' })}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.title}>Transaction Not Found</Text>
         </View>
@@ -264,14 +266,14 @@ export function EditTransactionForm() {
           style={styles.backButton}
           onPress={() => dispatch({ type: 'GO_BACK' })}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.title}>Edit Transaction</Text>
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={handleDelete}
         >
-          <Text style={styles.deleteButtonText}>🗑️</Text>
+          <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
@@ -452,7 +454,7 @@ export function EditTransactionForm() {
                   }}
                 >
                   <View style={[styles.modalItemIcon, { backgroundColor: account.color }]}>
-                    <Text style={styles.modalItemIconText}>{account.icon}</Text>
+                    <Icon name={account.icon} size={ICON_SIZES.MODAL_ACCOUNT} color="#ffffff" />
                   </View>
                   <View style={styles.modalItemContent}>
                     <Text style={[
@@ -509,7 +511,7 @@ export function EditTransactionForm() {
                     setShowCategoryModal(false);
                   }}
                 >
-                  <Text style={styles.modalCategoryIcon}>{category.icon}</Text>
+                  <Icon name={category.icon} size={ICON_SIZES.MODAL_CATEGORY} />
                   <Text style={[
                     styles.modalItemText,
                     formData.category === category.name && styles.modalItemTextActive
@@ -602,6 +604,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     backgroundColor: '#000000',
+    gap: 12,
   },
   backButton: {
     marginRight: 16,
@@ -625,10 +628,6 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#ef4444',
     borderRadius: 12,
-  },
-  deleteButtonText: {
-    fontSize: 20,
-    color: '#ffffff',
   },
   errorContainer: {
     flex: 1,
@@ -702,6 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202020ff',
     borderRadius: 12,
     padding: 6,
+    gap: 6,
   },
   typeButton: {
     flex: 1,
@@ -711,6 +711,7 @@ const styles = StyleSheet.create({
   },
   typeButtonActive: {
     backgroundColor: '#3e3e3eff',
+    transform: [{ scale: 1.02 }],
   },
   typeButtonText: {
     color: '#9ca3af',
@@ -733,7 +734,6 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 18,
     color: '#ffffff',
-    marginRight: 12,
     fontWeight: '500',
   },
   amountInput: {
@@ -855,6 +855,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
+    gap: 12,
   },
   modalItemActive: {
     backgroundColor: '#3e3e3eff',
@@ -865,7 +866,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   modalItemIconText: {
     fontSize: 18,
@@ -889,7 +889,6 @@ const styles = StyleSheet.create({
   },
   modalCategoryIcon: {
     fontSize: 24,
-    marginRight: 12,
   },
   addAccountModalButton: {
     backgroundColor: '#10b981',
@@ -983,6 +982,7 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   calendarDayHeader: {
     width: '14.28%',

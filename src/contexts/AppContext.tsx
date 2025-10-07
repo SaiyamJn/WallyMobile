@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Transaction, Category, Currency, Screen, Account } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { defaultCategoryIcons } from '../utils/iconUtils';
 
 interface AppState {
   transactions: Transaction[];
@@ -49,16 +50,16 @@ const currencies: Currency[] = [
 ];
 
 const defaultCategories: Category[] = [
-  { id: '1', name: 'Food & Dining', type: 'expense', icon: '🍴', color: '#ef4444' },
-  { id: '2', name: 'Transportation', type: 'expense', icon: '🚗', color: '#3b82f6' },
-  { id: '3', name: 'Shopping', type: 'expense', icon: '🛒', color: '#8b5cf6' },
-  { id: '4', name: 'Entertainment', type: 'expense', icon: '🎬', color: '#f59e0b' },
-  { id: '5', name: 'Bills & Utilities', type: 'expense', icon: '⚡', color: '#10b981' },
-  { id: '6', name: 'Healthcare', type: 'expense', icon: '🏥', color: '#ec4899' },
-  { id: '7', name: 'Salary', type: 'income', icon: '💼', color: '#059669' },
-  { id: '8', name: 'Freelance', type: 'income', icon: '💻', color: '#0ea5e9' },
-  { id: '9', name: 'Investment', type: 'income', icon: '📊', color: '#8b5cf6' },
-  { id: '10', name: 'Other Income', type: 'income', icon: '💳', color: '#f59e0b' },
+  { id: '1', name: 'Food & Dining', type: 'expense', icon: defaultCategoryIcons['Food & Dining'], color: '#ef4444' },
+  { id: '2', name: 'Transportation', type: 'expense', icon: defaultCategoryIcons['Transportation'], color: '#3b82f6' },
+  { id: '3', name: 'Shopping', type: 'expense', icon: defaultCategoryIcons['Shopping'], color: '#8b5cf6' },
+  { id: '4', name: 'Entertainment', type: 'expense', icon: defaultCategoryIcons['Entertainment'], color: '#f59e0b' },
+  { id: '5', name: 'Bills & Utilities', type: 'expense', icon: defaultCategoryIcons['Bills & Utilities'], color: '#10b981' },
+  { id: '6', name: 'Healthcare', type: 'expense', icon: defaultCategoryIcons['Healthcare'], color: '#ec4899' },
+  { id: '7', name: 'Salary', type: 'income', icon: defaultCategoryIcons['Salary'], color: '#059669' },
+  { id: '8', name: 'Freelance', type: 'income', icon: defaultCategoryIcons['Freelance'], color: '#0ea5e9' },
+  { id: '9', name: 'Investment', type: 'income', icon: defaultCategoryIcons['Investment'], color: '#8b5cf6' },
+  { id: '10', name: 'Other Income', type: 'income', icon: defaultCategoryIcons['Other Income'], color: '#f59e0b' },
 ];
 
 const defaultAccounts: Account[] = [
@@ -67,7 +68,7 @@ const defaultAccounts: Account[] = [
     name: 'Main Account',
     type: 'other',
     description: 'Primary account for daily expenses',
-    icon: '💳',
+    icon: 'card',
     color: '#3b82f6',
     balance: 0,
     currency: 'INR',

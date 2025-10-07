@@ -4,32 +4,28 @@ import { useApp } from '../contexts/AppContext';
 import { Account } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
-import { useCustomInputModal } from '../hooks/useCustomInputModal';
-import { CustomInputModal } from './ui/CustomInputModal';
+import { Icon } from './ui/Icon';
+import { accountIconOptions, getEmojiFallback } from '../utils/iconUtils';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function Accounts() {
-  const { state, dispatch, formatCurrency } = useApp();
+  const { state, dispatch, formatCurrency, convertAmount } = useApp();
   const { alertState, hideAlert, showDeleteAlert, showErrorAlert } = useCustomAlert();
-  const { modalState, showInputModal, hideInputModal } = useCustomInputModal();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAccount, setNewAccount] = useState({
     name: '',
     type: 'trip' as 'trip' | 'savings' | 'investment' | 'other',
     description: '',
-    icon: '✈️',
+    icon: 'plane',
     color: '#3b82f6' // Default color, not user-selectable
   });
-  const [currentAccountId, setCurrentAccountId] = useState<string | null>(null);
-  const [isAddingMoney, setIsAddingMoney] = useState(false);
 
   const accountTypeOptions = [
-    { value: 'trip', label: 'Trip', icon: '✈️' },
-    { value: 'savings', label: 'Savings', icon: '💳' },
-    { value: 'investment', label: 'Investment', icon: '📊' },
-    { value: 'other', label: 'Other', icon: '🍿' },
+    { value: 'trip', label: 'Trip', icon: 'plane' },
+    { value: 'savings', label: 'Savings', icon: 'card' },
+    { value: 'investment', label: 'Investment', icon: 'chart' },
+    { value: 'other', label: 'Other', icon: 'popcorn' },
   ];
-
-  const iconOptions = ['✈️', '💳', '📊', '🍿', '🏦', '💎', '🎯', '🚀', '⭐', '🔒', '💼', '🏠', '🎮', '📚', '🎨', '🎵'];
 
 
   const handleAddAccount = () => {
@@ -51,7 +47,7 @@ export function Accounts() {
     };
 
     dispatch({ type: 'ADD_ACCOUNT', payload: account });
-    setNewAccount({ name: '', type: 'trip', description: '', icon: '✈️', color: '#3b82f6' });
+    setNewAccount({ name: '', type: 'trip', description: '', icon: 'plane', color: '#3b82f6' });
     setShowAddForm(false);
   };
 
@@ -70,8 +66,16 @@ export function Accounts() {
     );
   };
 
-  const handleUpdateBalance = (accountId: string, amount: number) => {
-    dispatch({ type: 'UPDATE_ACCOUNT_BALANCE', payload: { accountId, amount } });
+
+  // Calculate account balance from transactions
+  const getAccountBalanceFromTransactions = (accountId: string) => {
+    const accountTransactions = state.transactions.filter(t => t.accountId === accountId);
+    const currentCurrency = state.currentCurrency;
+    
+    return accountTransactions.reduce((sum, transaction) => {
+      const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
+      return transaction.type === 'income' ? sum + convertedAmount : sum - convertedAmount;
+    }, 0);
   };
 
   const renderAccountItem = (account: Account) => (
@@ -89,7 +93,7 @@ export function Accounts() {
           <View 
             style={[styles.accountIconContainer, { backgroundColor: account.color + '20' }]}
           >
-            <Text style={styles.accountIcon}>{account.icon}</Text>
+            <Icon name={account.icon} size={ICON_SIZES.ACCOUNT} />
           </View>
           <View style={styles.accountInfo}>
             <Text style={styles.accountName}>{account.name}</Text>
@@ -108,7 +112,7 @@ export function Accounts() {
               handleDeleteAccount(account.id);
             }}
           >
-            <Text style={styles.deleteIcon}>🗑️</Text>
+            <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -116,42 +120,14 @@ export function Accounts() {
       <View style={styles.accountBalance}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
         <Text style={styles.balanceAmount}>
-          {formatCurrency(account.balance)}
+          {formatCurrency(getAccountBalanceFromTransactions(account.id))}
         </Text>
       </View>
 
       <View style={styles.balanceActions}>
-        <TouchableOpacity
-          style={[styles.balanceButton, styles.addBalanceButton]}
-          onPress={() => {
-            setCurrentAccountId(account.id);
-            setIsAddingMoney(true);
-            showInputModal(
-              'Add Money',
-              'Enter amount to add:',
-              '0.00',
-              'numeric'
-            );
-          }}
-        >
-          <Text style={styles.buttonText}>+ Add</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.balanceButton, styles.subtractBalanceButton]}
-          onPress={() => {
-            setCurrentAccountId(account.id);
-            setIsAddingMoney(false);
-            showInputModal(
-              'Remove Money',
-              'Enter amount to remove:',
-              '0.00',
-              'numeric'
-            );
-          }}
-        >
-          <Text style={styles.buttonText}>- Remove</Text>
-        </TouchableOpacity>
+        <Text style={styles.balanceNote}>
+          Balance calculated from transactions
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -169,7 +145,7 @@ export function Accounts() {
             style={styles.backButton}
             onPress={() => dispatch({ type: 'GO_BACK' })}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.title}>Accounts</Text>
           <TouchableOpacity
@@ -190,7 +166,7 @@ export function Accounts() {
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>💳</Text>
+                <Icon name="card" size={ICON_SIZES.EMPTY_STATE} />
                 <Text style={styles.emptyTitle}>No accounts</Text>
                 <Text style={styles.emptyText}>Create an account to start tracking</Text>
               </View>
@@ -233,7 +209,7 @@ export function Accounts() {
                   ]}
                   onPress={() => setNewAccount({...newAccount, type: type.value as any})}
                 >
-                  <Text style={styles.typeIcon}>{type.icon}</Text>
+                  <Icon name={type.icon} size={ICON_SIZES.ICON_SELECTION} />
                   <Text style={[
                     styles.typeText,
                     newAccount.type === type.value && styles.typeTextActive
@@ -273,7 +249,7 @@ export function Accounts() {
                 bounces={false}
                 scrollEventThrottle={16}
               >
-                {iconOptions.map((icon) => (
+                {accountIconOptions.map((icon) => (
                   <TouchableOpacity
                     key={icon}
                     style={[
@@ -282,7 +258,7 @@ export function Accounts() {
                     ]}
                     onPress={() => setNewAccount({...newAccount, icon})}
                   >
-                    <Text style={styles.iconText}>{icon}</Text>
+                    <Icon name={icon} size={ICON_SIZES.ICON_SELECTION} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -317,21 +293,6 @@ export function Accounts() {
         onClose={hideAlert}
       />
       
-      <CustomInputModal
-        visible={modalState.visible}
-        title={modalState.title}
-        message={modalState.message}
-        placeholder={modalState.placeholder}
-        keyboardType={modalState.keyboardType}
-        onConfirm={(amount) => {
-          if (currentAccountId && amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
-            const value = parseFloat(amount);
-            handleUpdateBalance(currentAccountId, isAddingMoney ? value : -value);
-          }
-          hideInputModal();
-        }}
-        onCancel={hideInputModal}
-      />
       </ScrollView>
     </View>
   );
@@ -358,6 +319,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 32,
+    gap: 12,
   },
   backButton: {
     marginRight: 16,
@@ -403,6 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   accountIconContainer: {
     width: 36,
@@ -410,7 +373,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   accountIcon: {
     fontSize: 18,
@@ -441,9 +403,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteIcon: {
-    fontSize: 14,
-  },
   accountBalance: {
     alignItems: 'center',
     marginBottom: 12,
@@ -463,38 +422,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   balanceActions: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     paddingHorizontal: 0,
-    gap: 6,
   },
-  balanceButton: {
-    flex: 1,
-    height: 40,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addBalanceButton: {
-    backgroundColor: '#10b981',
-  },
-  subtractBalanceButton: {
-    backgroundColor: '#ef4444',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
+  balanceNote: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
   emptyState: {
     alignItems: 'center',
@@ -609,17 +544,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingRight: 20,
+    gap: 12,
   },
   iconButton: {
     padding: 16,
-    marginRight: 12,
     backgroundColor: '#3e3e3eff',
     borderRadius: 12,
     minWidth: 56,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconButtonActive: {
     backgroundColor: '#10b981',
+    transform: [{ scale: 1.1 }],
   },
   iconText: {
     fontSize: 24,

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 const { width } = Dimensions.get('window');
 
@@ -134,7 +136,7 @@ export function Reports() {
       return {
         name: account.name,
         value: total,
-        icon: '💳',
+        icon: 'card',
         color: account.color || '#10b981',
         percentage: totalIncome > 0 ? (total / totalIncome) * 100 : 0,
         accountId: account.id,
@@ -341,11 +343,11 @@ export function Reports() {
       <View style={styles.header}>
         <View style={styles.monthNavigation}>
           <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navButton}>
-            <Text style={styles.navIcon}>‹</Text>
+            <Icon name="back" size={ICON_SIZES.ACTION} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.monthText}>{formatMonthYear(currentMonth)}</Text>
           <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navButton}>
-            <Text style={styles.navIcon}>›</Text>
+            <Icon name="forward" size={ICON_SIZES.ACTION} color="#ffffff" />
           </TouchableOpacity>
         </View>
         
@@ -355,7 +357,7 @@ export function Reports() {
             onPress={() => setShowDropdown(!showDropdown)}
           >
             <Text style={styles.dropdownText}>{formatPeriodDisplay()}</Text>
-            <Text style={styles.dropdownIcon}>▼</Text>
+            <Icon name="down" size={ICON_SIZES.ACTION} color="#ffffff" />
           </TouchableOpacity>
           
           {showDropdown && (
@@ -439,7 +441,7 @@ export function Reports() {
                 >
                   <View style={styles.categoryBarHeader}>
                     <View style={styles.categoryBarLeft}>
-                      <Text style={styles.categoryBarIcon}>{category.icon}</Text>
+                      <Icon name={category.icon} size={ICON_SIZES.SM} />
                       <Text style={styles.categoryBarName}>{category.name}</Text>
                     </View>
                     <Text style={styles.categoryBarAmount}>{formatCurrency(category.value)}</Text>
@@ -478,7 +480,7 @@ export function Reports() {
             <View key={account.accountId} style={styles.accountCard}>
               <View style={styles.accountCardHeader}>
                 <View style={styles.accountCardLeft}>
-                  <Text style={styles.accountCardIcon}>{account.icon}</Text>
+                  <Icon name={account.icon} size={ICON_SIZES.SM} />
                   <Text style={styles.accountCardName}>{account.name}</Text>
                 </View>
                 <Text style={styles.accountCardAmount}>{formatCurrency(account.value)}</Text>
@@ -496,7 +498,7 @@ export function Reports() {
                     >
                       <View style={styles.categoryBarHeader}>
                         <View style={styles.categoryBarLeft}>
-                          <Text style={styles.categoryBarIcon}>{category.icon}</Text>
+                          <Icon name={category.icon} size={ICON_SIZES.SM} />
                           <Text style={styles.categoryBarName}>{category.name}</Text>
                         </View>
                         <Text style={styles.categoryBarAmount}>{formatCurrency(category.value)}</Text>
@@ -525,7 +527,7 @@ export function Reports() {
       {/* No Data State */}
       {periodTransactions.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📊</Text>
+          <Icon name="chart" size={ICON_SIZES.EMPTY_STATE} />
           <Text style={styles.emptyTitle}>No data</Text>
           <Text style={styles.emptyText}>
             Add transactions to see reports
@@ -634,9 +636,12 @@ const styles = StyleSheet.create({
   monthNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   navButton: {
     padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navIcon: {
     fontSize: 24,
@@ -656,6 +661,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    gap: 12,
   },
   dropdownText: {
     color: '#ffffff',
@@ -670,6 +676,7 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 24,
+    gap: 12,
   },
   tabButton: {
     flex: 1,
@@ -680,6 +687,7 @@ const styles = StyleSheet.create({
   tabButtonActive: {
     borderBottomWidth: 2,
     borderBottomColor: '#ef4444',
+    transform: [{ scale: 1.02 }],
   },
   tabText: {
     color: '#9ca3af',
@@ -748,10 +756,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   categoryBarIcon: {
     fontSize: 18,
-    marginRight: 8,
   },
   categoryBarName: {
     fontSize: 16,
@@ -830,10 +838,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   accountCardIcon: {
     fontSize: 20,
-    marginRight: 12,
   },
   accountCardName: {
     fontSize: 18,
@@ -954,6 +962,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 4,
+    gap: 4,
   },
   calendarDayHeader: {
     width: '14.28%',

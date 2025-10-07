@@ -4,6 +4,8 @@ import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function TransactionsList() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
@@ -130,7 +132,7 @@ export function TransactionsList() {
                   dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
                 }}
               >
-                <Text style={styles.accountFilterIcon}>{account.icon}</Text>
+                <Icon name={account.icon} size={ICON_SIZES.SM} />
                 <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
                   {account.name}
                 </Text>
@@ -196,7 +198,7 @@ export function TransactionsList() {
                           { backgroundColor: getCategoryColor(transaction.category, state.categories) + '20' }
                         ]}
                       >
-                        <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category, state.categories)}</Text>
+                        <Icon name={getCategoryIcon(transaction.category, state.categories)} size={ICON_SIZES.TRANSACTION} />
                       </View>
                       <View style={styles.transactionInfo}>
                         <Text style={styles.transactionCategory}>{transaction.category}</Text>
@@ -227,7 +229,7 @@ export function TransactionsList() {
                           handleDeleteTransaction(transaction.id);
                         }}
                       >
-                        <Text style={styles.deleteIcon}>🗑️</Text>
+                        <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -238,7 +240,7 @@ export function TransactionsList() {
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🔍</Text>
+          <Icon name="chart" size={ICON_SIZES.EMPTY_STATE} />
           <Text style={styles.emptyTitle}>No transactions found</Text>
           <Text style={styles.emptyText}>
             {filter === 'all' 
@@ -277,6 +279,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
   },
   title: {
     fontSize: 28,
@@ -300,6 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 6,
     marginBottom: 16,
+    gap: 6,
   },
   filterButton: {
     flex: 1,
@@ -309,6 +313,7 @@ const styles = StyleSheet.create({
   },
   filterButtonActive: {
     backgroundColor: '#3e3e3eff',
+    transform: [{ scale: 1.02 }],
   },
   filterText: {
     color: '#9ca3af',
@@ -355,7 +360,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    gap: 12,
   },
   categoryIconContainer: {
     width: 36,
@@ -363,7 +368,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
   categoryIcon: {
     fontSize: 16,
@@ -414,9 +418,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteIcon: {
-    fontSize: 12,
-  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
@@ -462,6 +463,7 @@ const styles = StyleSheet.create({
   accountFilterContent: {
     paddingRight: 20,
     paddingLeft: 4,
+    gap: 12,
   },
   accountFilterButton: {
     flexDirection: 'row',
@@ -470,14 +472,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    marginRight: 12,
+    marginRight: 1,
+    gap: 12,
   },
   accountFilterButtonActive: {
     backgroundColor: '#3e3e3eff',
+    transform: [{ scale: 1.02 }],
   },
   accountFilterIcon: {
     fontSize: 16,
-    marginRight: 8,
   },
   accountFilterText: {
     color: '#9ca3af',

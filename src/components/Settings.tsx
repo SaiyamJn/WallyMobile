@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function Settings() {
   const { state, dispatch, currencies } = useApp();
@@ -35,7 +37,7 @@ export function Settings() {
           style={styles.backButton}
           onPress={() => dispatch({ type: 'GO_BACK' })}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
       </View>
@@ -48,7 +50,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'categories' })}
           >
-            <Text style={styles.dataIcon}>📁</Text>
+            <Icon name="chart" size={ICON_SIZES.ACTION} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Manage Categories</Text>
               <Text style={styles.dataDescription}>Add, edit, or delete categories</Text>
@@ -60,7 +62,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={handleClearData}
           >
-            <Text style={styles.dataIcon}>🗑️</Text>
+            <Icon name="delete" size={ICON_SIZES.ACTION} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Clear All Data</Text>
               <Text style={styles.dataDescription}>Reset the app to initial state</Text>
@@ -106,7 +108,7 @@ export function Settings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>2.1.1</Text>
+            <Text style={styles.infoValue}>3.0.0</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total Transactions</Text>
@@ -161,9 +163,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 24,
+    gap: 12,
   },
   backButton: {
-    marginRight: 12,
     padding: 6,
     backgroundColor: '#202020ff',
     borderRadius: 8,
@@ -273,10 +275,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#3e3e3eff',
+    gap: 12,
   },
   dataIcon: {
     fontSize: 24,
-    marginRight: 16,
   },
   dataInfo: {
     flex: 1,

@@ -4,6 +4,9 @@ import { useApp } from '../contexts/AppContext';
 import { Category } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { Icon } from './ui/Icon';
+import { categoryIconOptions, getEmojiFallback } from '../utils/iconUtils';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function CategoryManagement() {
   const { state, dispatch } = useApp();
@@ -12,14 +15,13 @@ export function CategoryManagement() {
   const [newCategory, setNewCategory] = useState({
     name: '',
     type: 'expense' as 'income' | 'expense',
-    icon: '💳',
+    icon: 'card',
     color: '#3b82f6'
   });
 
   const expenseCategories = state.categories.filter(c => c.type === 'expense');
   const incomeCategories = state.categories.filter(c => c.type === 'income');
 
-  const iconOptions = ['💳', '🍴', '🚗', '🛒', '🎬', '⚡', '🏥', '💼', '💻', '📊', '🏠', '🎮', '📚', '✈️', '🍕', '☕'];
   const colorOptions = ['#ef4444', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#84cc16'];
 
 
@@ -38,7 +40,7 @@ export function CategoryManagement() {
     };
 
     dispatch({ type: 'ADD_CATEGORY', payload: category });
-    setNewCategory({ name: '', type: 'expense', icon: '💰', color: '#3b82f6' });
+    setNewCategory({ name: '', type: 'expense', icon: 'card', color: '#3b82f6' });
     setShowAddForm(false);
   };
 
@@ -100,7 +102,7 @@ export function CategoryManagement() {
               <View 
                 style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}
               >
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
+                <Icon name={category.icon} size={ICON_SIZES.CATEGORY} />
               </View>
               <Text style={styles.categoryName}>{category.name}</Text>
             </View>
@@ -108,7 +110,7 @@ export function CategoryManagement() {
               style={styles.deleteButton}
               onPress={() => handleDeleteCategory(category.id)}
             >
-              <Text style={styles.deleteIcon}>🗑️</Text>
+              <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
             </TouchableOpacity>
           </View>
         ))}
@@ -129,7 +131,7 @@ export function CategoryManagement() {
             style={styles.backButton}
             onPress={() => dispatch({ type: 'GO_BACK' })}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
           </TouchableOpacity>
           
           <View style={styles.titleContainer}>
@@ -222,7 +224,7 @@ export function CategoryManagement() {
                 bounces={false}
                 scrollEventThrottle={16}
               >
-                {iconOptions.map((icon) => (
+                {categoryIconOptions.map((icon) => (
                   <TouchableOpacity
                     key={icon}
                     style={[
@@ -231,7 +233,7 @@ export function CategoryManagement() {
                     ]}
                     onPress={() => setNewCategory({...newCategory, icon})}
                   >
-                    <Text style={styles.iconText}>{icon}</Text>
+                    <Icon name={icon} size={ICON_SIZES.ICON_SELECTION} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -306,9 +308,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
+    gap: 12,
   },
   backButton: {
-    marginRight: 12,
     padding: 6,
     backgroundColor: '#202020ff',
     borderRadius: 8,
@@ -363,6 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   categoryIconContainer: {
     width: 48,
@@ -387,9 +390,6 @@ const styles = StyleSheet.create({
     minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteIcon: {
-    fontSize: 18,
   },
   addButton: {
     padding: 8,
@@ -448,6 +448,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3e3e3eff',
     borderRadius: 12,
     padding: 6,
+    gap: 6,
   },
   typeButton: {
     flex: 1,
@@ -457,6 +458,7 @@ const styles = StyleSheet.create({
   },
   typeButtonActive: {
     backgroundColor: '#10b981',
+    transform: [{ scale: 1.02 }],
   },
   typeButtonText: {
     color: '#9ca3af',
@@ -485,17 +487,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingRight: 20,
+    gap: 12,
   },
   iconButton: {
     padding: 16,
-    marginRight: 12,
     backgroundColor: '#3e3e3eff',
     borderRadius: 12,
     minWidth: 56,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconButtonActive: {
     backgroundColor: '#10b981',
+    transform: [{ scale: 1.1 }],
   },
   iconText: {
     fontSize: 24,

@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDate } from '../utils/transactionUtils';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function Dashboard() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
@@ -23,7 +25,14 @@ export function Dashboard() {
       return sum + convertedAmount;
     }, 0);
 
-  const balance = totalIncome - totalExpense;
+  // Calculate total balance from all accounts (converted to current currency)
+  const totalAccountBalance = state.accounts.reduce((sum, account) => {
+    const convertedAmount = convertAmount(account.balance, account.currency, currentCurrency.code);
+    return sum + convertedAmount;
+  }, 0);
+
+  // Use account balance as the primary balance, fallback to transaction calculation if no accounts
+  const balance = state.accounts.length > 0 ? totalAccountBalance : (totalIncome - totalExpense);
 
   // Get the 5 most recent transactions, sorted with newest first
   const recentTransactions = state.transactions
@@ -61,7 +70,7 @@ export function Dashboard() {
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <View style={styles.balanceTitleContainer}>
-              <Text style={styles.walletIcon}>💰</Text>
+              <Icon name="total_balance" size={ICON_SIZES.DASHBOARD_BALANCE} />
               <Text style={styles.balanceTitle}>Total Balance</Text>
             </View>
             <Text style={styles.currencyCode}>{currentCurrency.code}</Text>
@@ -75,7 +84,7 @@ export function Dashboard() {
         <View style={styles.statsRow}>
           <View style={[styles.statCard, styles.incomeCard]}>
             <View style={styles.statHeader}>
-              <Text style={styles.incomeIcon}>↗️</Text>
+              <Icon name="income_arrow" size={ICON_SIZES.DASHBOARD_STAT} />
               <Text style={styles.statLabel}>Income</Text>
             </View>
             <Text style={styles.incomeAmount}>
@@ -85,7 +94,7 @@ export function Dashboard() {
 
           <View style={[styles.statCard, styles.expenseCard]}>
             <View style={styles.statHeader}>
-              <Text style={styles.expenseIcon}>↘️</Text>
+              <Icon name="expense_arrow" size={ICON_SIZES.DASHBOARD_STAT} />
               <Text style={styles.statLabel}>Expenses</Text>
             </View>
             <Text style={styles.expenseAmount}>
@@ -118,7 +127,7 @@ export function Dashboard() {
               >
                 <View style={styles.transactionLeft}>
                   <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(transaction.category, state.categories) + '20' }]}>
-                    <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category, state.categories)}</Text>
+                    <Icon name={getCategoryIcon(transaction.category, state.categories)} size={ICON_SIZES.TRANSACTION} />
                   </View>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionCategory}>{transaction.category}</Text>
@@ -141,7 +150,7 @@ export function Dashboard() {
         style={styles.floatingButton}
         onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'add-transaction' })}
       >
-        <Text style={styles.floatingButtonIcon}>+</Text>
+        <Icon name="add" size={ICON_SIZES.FLOATING} color="#ffffff" />
       </TouchableOpacity>
 
     </View>
@@ -198,10 +207,7 @@ const styles = StyleSheet.create({
   balanceTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  walletIcon: {
-    fontSize: 18,
+    gap: 12,
   },
   balanceTitle: {
     fontSize: 16,
@@ -220,7 +226,7 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
     marginBottom: 24,
   },
   statCard: {
@@ -239,7 +245,7 @@ const styles = StyleSheet.create({
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     marginBottom: 10,
   },
   incomeIcon: {
@@ -283,6 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   categoryIconContainer: {
     width: 40,
@@ -290,10 +297,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  categoryIcon: {
-    fontSize: 18,
   },
   transactionInfo: {
     flex: 1,

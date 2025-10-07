@@ -4,6 +4,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 export function AddTransactionForm() {
   const { state, dispatch } = useApp();
@@ -249,7 +251,7 @@ export function AddTransactionForm() {
           style={styles.backButton}
           onPress={() => dispatch({ type: 'GO_BACK' })}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.title}>Add Transaction</Text>
       </View>
@@ -348,9 +350,11 @@ export function AddTransactionForm() {
                 {formData.accountId ? (
                   <>
                     <View style={[styles.selectionIcon, { backgroundColor: state.accounts.find(a => a.id === formData.accountId)?.color }]}>
-                      <Text style={styles.selectionIconText}>
-                        {state.accounts.find(a => a.id === formData.accountId)?.icon}
-                      </Text>
+                      <Icon 
+                        name={state.accounts.find(a => a.id === formData.accountId)?.icon || 'card'} 
+                        size={ICON_SIZES.FORM_ACCOUNT} 
+                        color="#ffffff" 
+                      />
                     </View>
                     <Text style={styles.selectionText}>
                       {state.accounts.find(a => a.id === formData.accountId)?.name}
@@ -374,9 +378,10 @@ export function AddTransactionForm() {
               <View style={styles.selectionContent}>
                 {formData.category ? (
                   <>
-                    <Text style={styles.selectionCategoryIcon}>
-                      {state.categories.find(c => c.name === formData.category)?.icon}
-                    </Text>
+                    <Icon 
+                      name={state.categories.find(c => c.name === formData.category)?.icon || 'card'} 
+                      size={ICON_SIZES.FORM_CATEGORY} 
+                    />
                     <Text style={styles.selectionText}>
                       {formData.category}
                     </Text>
@@ -458,7 +463,7 @@ export function AddTransactionForm() {
                   }}
                 >
                   <View style={[styles.modalItemIcon, { backgroundColor: account.color }]}>
-                    <Text style={styles.modalItemIconText}>{account.icon}</Text>
+                    <Icon name={account.icon} size={ICON_SIZES.MODAL_ACCOUNT} color="#ffffff" />
                   </View>
                   <View style={styles.modalItemContent}>
                     <Text style={[
@@ -517,7 +522,7 @@ export function AddTransactionForm() {
                     }, 100);
                   }}
                 >
-                  <Text style={styles.modalCategoryIcon}>{category.icon}</Text>
+                  <Icon name={category.icon} size={ICON_SIZES.MODAL_CATEGORY} />
                   <Text style={[
                     styles.modalItemText,
                     formData.category === category.name && styles.modalItemTextActive
@@ -609,6 +614,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     backgroundColor: '#000000',
+    gap: 12,
   },
   backButton: {
     marginRight: 16,
@@ -698,6 +704,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202020ff',
     borderRadius: 12,
     padding: 6,
+    gap: 6,
   },
   typeButton: {
     flex: 1,
@@ -707,6 +714,7 @@ const styles = StyleSheet.create({
   },
   typeButtonActive: {
     backgroundColor: '#3e3e3eff',
+    transform: [{ scale: 1.02 }],
   },
   typeButtonText: {
     color: '#9ca3af',
@@ -729,7 +737,6 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 18,
     color: '#ffffff',
-    marginRight: 12,
     fontWeight: '500',
   },
   amountInput: {
@@ -759,6 +766,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 12,
   },
   selectionIcon: {
     width: 24,
@@ -766,7 +774,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   selectionIconText: {
     fontSize: 14,
@@ -774,7 +781,6 @@ const styles = StyleSheet.create({
   },
   selectionCategoryIcon: {
     fontSize: 20,
-    marginRight: 12,
   },
   selectionText: {
     fontSize: 16,
@@ -840,6 +846,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 8,
+    gap: 12,
   },
   modalItemActive: {
     backgroundColor: '#3e3e3eff',
@@ -852,7 +859,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   modalItemIconText: {
     fontSize: 16,
@@ -876,7 +882,6 @@ const styles = StyleSheet.create({
   },
   modalCategoryIcon: {
     fontSize: 24,
-    marginRight: 12,
   },
   addAccountModalButton: {
     backgroundColor: '#10b981',
@@ -1044,6 +1049,7 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   calendarDayHeader: {
     width: '14.28%',

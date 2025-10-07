@@ -45,11 +45,14 @@ npm start
 - Monthly and yearly summaries
 
 ### 🎨 **User Experience**
-- Beautiful dark theme interface
+- Beautiful dark theme interface with custom PNG icons
+- Smooth transitions and animations throughout the app
 - Custom themed alerts and modals
 - Smooth navigation with back button support
 - Responsive design for all screen sizes
 - Offline-first architecture
+- Consistent icon system with emoji fallbacks
+- Professional spacing and alignment
 
 ### 💾 **Data Management**
 - Local data storage with AsyncStorage
@@ -177,6 +180,8 @@ npx expo build:android
 - **State Management**: React Context API + useReducer
 - **Storage**: AsyncStorage
 - **Styling**: StyleSheet + Custom Components
+- **Icons**: Custom PNG assets with emoji fallbacks
+- **Animations**: React Native transform properties
 - **Build Tool**: EAS CLI
 - **Package Manager**: npm
 
@@ -197,6 +202,7 @@ WallyMobile/
 │   ├── types/              # TypeScript type definitions
 │   └── styles/             # Global styles
 ├── assets/                 # Images and icons
+│   └── icons/             # Custom PNG icon assets
 ├── app.json               # Expo configuration
 ├── eas.json              # EAS build configuration
 ├── package.json          # Dependencies
@@ -288,6 +294,17 @@ If you have any questions or need help, please:
 - Open an issue on GitHub
 - Check the documentation
 - Review the code comments
+
+## ✨ **Recent Updates**
+
+### **v2.1.1 - Icon System & UI Improvements**
+- ✅ **Custom Icon System**: Replaced emoji icons with professional PNG assets
+- ✅ **Smooth Transitions**: Added scale animations and smooth transitions throughout the app
+- ✅ **Consistent Spacing**: Standardized icon-text spacing and button alignment
+- ✅ **Navigation Polish**: Enhanced bottom navigation with proper color tinting
+- ✅ **Selection Boxes**: Fixed spacing between filter buttons and selection elements
+- ✅ **Icon Size Management**: Centralized icon sizing with predefined constants
+- ✅ **Visual Feedback**: Added hover effects and active states for better UX
 
 ## 🔮 **Future Roadmap**
 

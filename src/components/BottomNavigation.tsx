@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { Screen } from '../types';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 const navigationItems = [
-  { screen: 'dashboard' as Screen, icon: '🏠',},
-  { screen: 'transactions' as Screen, icon: '📋', },
-  { screen: 'accounts' as Screen, icon: '💳', },
-  { screen: 'reports' as Screen, icon: '📊', },
-  { screen: 'settings' as Screen, icon: '⚙️', },
+  { screen: 'dashboard' as Screen, icon: 'dashboard' },
+  { screen: 'transactions' as Screen, icon: 'transactions' },
+  { screen: 'accounts' as Screen, icon: 'accounts' },
+  { screen: 'reports' as Screen, icon: 'reports' },
+  { screen: 'settings' as Screen, icon: 'settings' },
 ];
 
 export function BottomNavigation() {
@@ -25,9 +27,11 @@ export function BottomNavigation() {
               style={[styles.navButton, isActive && styles.navButtonActive]}
               onPress={() => dispatch({ type: 'SET_SCREEN', payload: screen })}
             >
-              <Text style={[styles.navIcon, isActive && styles.navIconActive]}>
-                {icon}
-              </Text>
+              <Icon 
+                name={icon} 
+                size={ICON_SIZES.NAVIGATION} 
+                color={isActive ? "#ffffff" : "#9ca3af"} 
+              />
             </TouchableOpacity>
           );
         })}
@@ -43,8 +47,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#202020ff',
-    borderTopWidth: 0,
-    borderTopColor: '#202020ff',
     paddingBottom: 5,
   },
   navigation: {
@@ -68,11 +70,6 @@ const styles = StyleSheet.create({
   },
   navButtonActive: {
     backgroundColor: '#3e3e3eff',
-  },
-  navIcon: {
-    fontSize: 24,
-  },
-  navIconActive: {
-    // Icon color is handled by the emoji itself
+    transform: [{ scale: 1.05 }],
   },
 });

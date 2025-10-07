@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
+import { Icon } from './ui/Icon';
+import { ICON_SIZES } from '../constants/iconSizes';
 
 const { width } = Dimensions.get('window');
 
@@ -85,7 +87,7 @@ export function CategoryTransactions({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>‹</Text>
+          <Icon name="back" size={ICON_SIZES.BACK_BUTTON} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>{categoryName}</Text>
@@ -126,7 +128,7 @@ export function CategoryTransactions({
                         { backgroundColor: getCategoryColor(transaction.category, state.categories) + '20' }
                       ]}
                     >
-                      <Text style={styles.categoryIcon}>{getCategoryIcon(transaction.category, state.categories)}</Text>
+                      <Icon name={getCategoryIcon(transaction.category, state.categories)} size={ICON_SIZES.TRANSACTION} />
                     </View>
                     <View style={styles.transactionInfo}>
                       <Text style={styles.transactionCategory}>{transaction.category}</Text>
@@ -157,7 +159,7 @@ export function CategoryTransactions({
 
         {categoryTransactions.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📝</Text>
+            <Icon name="chart" size={ICON_SIZES.EMPTY_STATE} />
             <Text style={styles.emptyTitle}>No transactions</Text>
             <Text style={styles.emptyText}>
               No transactions found for {categoryName}
@@ -182,6 +184,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
+    gap: 12,
   },
   backButton: {
     width: 40,
@@ -191,11 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
-  },
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: 'bold',
   },
   headerContent: {
     flex: 1,
@@ -244,7 +242,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
   },
   categoryIconContainer: {
     width: 36,
@@ -252,7 +249,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
   categoryIcon: {
     fontSize: 16,
