@@ -33,61 +33,146 @@ export function Settings() {
 
   const handleExportData = async () => {
     try {
+      // Step 1: Generate backup data
       const backupJson = await exportData();
-      const fileName = `Wally_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      
+      // Validate that we have backup data
+      if (!backupJson || backupJson.trim().length === 0) {
+        showErrorAlert('Failed to export: No data to export. Please ensure you have transactions, categories, or accounts.');
+        return;
+      }
+
+      // Validate JSON is valid
+      try {
+        JSON.parse(backupJson);
+      } catch (parseError) {
+        showErrorAlert('Failed to export: Generated backup data is invalid. Please try again.');
+        console.error('Invalid backup JSON:', parseError);
+        return;
+      }
+
+      // Create a safe filename with date (format: YYYY-MM-DD)
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `Wally_Backup_${dateStr}.json`;
       
       if (Platform.OS === 'web') {
         // For web, create a download link
-        const blob = new Blob([backupJson], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showSuccessAlert('Backup exported successfully!');
+        try {
+          const blob = new Blob([backupJson], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          showSuccessAlert('Backup exported successfully!');
+        } catch (webError) {
+          console.error('Web export error:', webError);
+          showErrorAlert(`Failed to export on web: ${webError instanceof Error ? webError.message : 'Unknown error'}`);
+        }
       } else {
         // For mobile, save file to cache directory (more reliable for sharing on Android)
         // Using cacheDirectory ensures better compatibility with Android's scoped storage
-        const fileUri = FileSystem.cacheDirectory + fileName;
-        
-        // Write the file to device storage
-        await FileSystem.writeAsStringAsync(fileUri, backupJson, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        
-        // Check if sharing is available
-        const isAvailable = await Sharing.isAvailableAsync();
-        
-        if (isAvailable) {
-          // Share the file - this opens native share dialog where user can:
-          // - Save to Files (iOS/Android)
-          // - Save to Downloads (Android)
-          // - Share via other apps
-          // Note: expo-sharing works with cacheDirectory files on Android
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/json',
-            dialogTitle: 'Save Backup File',
-            UTI: 'public.json'
-          });
-          showSuccessAlert('Backup file ready to share!');
-        } else {
-          // Fallback to Share API if Sharing is not available
-          const result = await Share.share({
-            message: backupJson,
-            title: fileName
+        try {
+          // Ensure cacheDirectory exists
+          if (!FileSystem.cacheDirectory) {
+            showErrorAlert('Failed to export: File system not available. Please check app permissions.');
+            return;
+          }
+
+          // Ensure proper path construction (handle trailing slash)
+          const cacheDir = FileSystem.cacheDirectory || '';
+          const fileUri = cacheDir.endsWith('/') || cacheDir.endsWith('\\') 
+            ? `${cacheDir}${fileName}` 
+            : `${cacheDir}/${fileName}`;
+          
+          // Write the file to device storage
+          await FileSystem.writeAsStringAsync(fileUri, backupJson, {
+            encoding: FileSystem.EncodingType.UTF8,
           });
           
-          if (result.action === Share.sharedAction) {
-            showSuccessAlert('Backup shared successfully!');
+          // Verify file was written
+          const fileInfo = await FileSystem.getInfoAsync(fileUri);
+          if (!fileInfo.exists) {
+            showErrorAlert('Failed to export: File could not be created. Please check storage permissions.');
+            return;
+          }
+          
+          // Check if sharing is available
+          const isAvailable = await Sharing.isAvailableAsync();
+          
+          if (isAvailable) {
+            try {
+              // Share the file - this opens native share dialog where user can:
+              // - Save to Files (iOS/Android)
+              // - Save to Downloads (Android)
+              // - Share via other apps
+              // Note: expo-sharing works with cacheDirectory files on Android
+              await Sharing.shareAsync(fileUri, {
+                mimeType: 'application/json',
+                dialogTitle: 'Save Backup File',
+                UTI: 'public.json'
+              });
+              showSuccessAlert('Backup file ready to share!');
+            } catch (shareError) {
+              console.error('Sharing error:', shareError);
+              // If sharing fails, try fallback
+              try {
+                const result = await Share.share({
+                  message: backupJson,
+                  title: fileName
+                });
+                
+                if (result.action === Share.sharedAction) {
+                  showSuccessAlert('Backup shared successfully!');
+                } else if (result.action === Share.dismissedAction) {
+                  // User dismissed, don't show error
+                  return;
+                }
+              } catch (fallbackError) {
+                console.error('Fallback share error:', fallbackError);
+                showErrorAlert(`Failed to share backup: ${shareError instanceof Error ? shareError.message : 'Sharing not available'}. File saved at: ${fileUri}`);
+              }
+            }
+          } else {
+            // Fallback to Share API if Sharing is not available
+            try {
+              const result = await Share.share({
+                message: backupJson,
+                title: fileName
+              });
+              
+              if (result.action === Share.sharedAction) {
+                showSuccessAlert('Backup shared successfully!');
+              } else if (result.action === Share.dismissedAction) {
+                // User dismissed, don't show error
+                return;
+              }
+            } catch (shareError) {
+              console.error('Share API error:', shareError);
+              showErrorAlert(`Failed to share backup: ${shareError instanceof Error ? shareError.message : 'Sharing not available'}. File saved at: ${fileUri}`);
+            }
+          }
+        } catch (fileError) {
+          console.error('File system error:', fileError);
+          const errorMessage = fileError instanceof Error ? fileError.message : 'Unknown error';
+          
+          // Provide more specific error messages
+          if (errorMessage.includes('permission') || errorMessage.includes('Permission')) {
+            showErrorAlert('Failed to export: Storage permission denied. Please grant storage permissions in app settings.');
+          } else if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
+            showErrorAlert('Failed to export: File system path not found. Please try again.');
+          } else {
+            showErrorAlert(`Failed to export backup: ${errorMessage}`);
           }
         }
       }
     } catch (error) {
       console.error('Error exporting data:', error);
-      showErrorAlert('Failed to export backup. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showErrorAlert(`Failed to export backup: ${errorMessage}. Please try again.`);
     }
   };
 
