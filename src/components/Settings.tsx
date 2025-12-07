@@ -15,6 +15,7 @@ export function Settings() {
   const { alertState, hideAlert, showDeleteAlert, showSuccessAlert, showErrorAlert } = useCustomAlert();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showImportOptions, setShowImportOptions] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
   const handleCurrencyChange = (currency: typeof currencies[0]) => {
     dispatch({ type: 'SET_CURRENCY', payload: currency });
@@ -31,9 +32,9 @@ export function Settings() {
     );
   };
 
-  const handleExportData = async () => {
+  const handleDownloadBackup = async () => {
     try {
-      // Step 1: Generate backup data
+      // Generate backup data
       const backupJson = await exportData();
       
       // Validate that we have backup data
@@ -51,167 +52,123 @@ export function Settings() {
         return;
       }
 
-      // Create a safe filename with date (format: YYYY-MM-DD)
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `Wally_Backup_${dateStr}.json`;
+
+      if (Platform.OS === 'web') {
+        // For web, create a download link
+        const blob = new Blob([backupJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showSuccessAlert('Backup downloaded successfully!');
+      } else {
+        // For mobile, save file and use sharing to save to Downloads
+        let fileUri: string | null = null;
+        let directory: string | null = null;
+
+        // Try documentDirectory first (more reliable on Android)
+        if (FileSystem.documentDirectory) {
+          directory = FileSystem.documentDirectory;
+        } else if (FileSystem.cacheDirectory) {
+          directory = FileSystem.cacheDirectory;
+        } else {
+          showErrorAlert('File system not available. Please check app permissions.');
+          return;
+        }
+
+        // Ensure proper path construction
+        const dir = directory.endsWith('/') || directory.endsWith('\\') 
+          ? directory 
+          : `${directory}/`;
+        fileUri = `${dir}${fileName}`;
+        
+        // Write the file to device storage
+        await FileSystem.writeAsStringAsync(fileUri, backupJson, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        
+        // Verify file was written
+        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        if (!fileInfo.exists) {
+          showErrorAlert('Failed to create backup file. Please check storage permissions.');
+          return;
+        }
+        
+        // Use expo-sharing to save to Downloads (on Android, this allows saving to Downloads)
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          try {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/json',
+              dialogTitle: 'Save Backup to Downloads',
+              UTI: 'public.json'
+            });
+            showSuccessAlert('Backup saved! Check your Downloads folder.');
+          } catch (shareError) {
+            console.error('Sharing error:', shareError);
+            showErrorAlert(`Failed to save backup: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
+          }
+        } else {
+          showErrorAlert('Sharing not available on this device.');
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading backup:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showErrorAlert(`Failed to download backup: ${errorMessage}. Please try again.`);
+    }
+  };
+
+  const handleShareBackup = async () => {
+    // Original share functionality
+    try {
+      const backupJson = await exportData();
+      
+      if (!backupJson || backupJson.trim().length === 0) {
+        showErrorAlert('Failed to export: No data to export.');
+        return;
+      }
+
       const dateStr = new Date().toISOString().split('T')[0];
       const fileName = `Wally_Backup_${dateStr}.json`;
       
       if (Platform.OS === 'web') {
-        // For web, create a download link
-        try {
-          const blob = new Blob([backupJson], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          showSuccessAlert('Backup exported successfully!');
-        } catch (webError) {
-          console.error('Web export error:', webError);
-          showErrorAlert(`Failed to export on web: ${webError instanceof Error ? webError.message : 'Unknown error'}`);
-        }
+        const blob = new Blob([backupJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showSuccessAlert('Backup exported successfully!');
       } else {
-        // For mobile, try multiple approaches for maximum compatibility
-        // Approach 1: Try sharing directly with JSON (no file system needed) - works on all Android versions
-        try {
-          const shareResult = await Share.share({
-            message: backupJson,
-            title: fileName
-          });
-          
-          if (shareResult.action === Share.sharedAction) {
-            showSuccessAlert('Backup shared successfully!');
-            return; // Success, exit early
-          } else if (shareResult.action === Share.dismissedAction) {
-            // User dismissed, don't show error
-            return;
-          }
-        } catch (shareError) {
-          console.log('Direct share failed, trying file-based approach:', shareError);
-          // Continue to file-based approach
-        }
-
-        // Approach 2: Try file-based sharing (better for saving to files)
-        try {
-          // Try documentDirectory first (more reliable on Android)
-          let fileUri: string | null = null;
-          let directory: string | null = null;
-
-          // Try documentDirectory first
-          if (FileSystem.documentDirectory) {
-            directory = FileSystem.documentDirectory;
-          } 
-          // Fallback to cacheDirectory
-          else if (FileSystem.cacheDirectory) {
-            directory = FileSystem.cacheDirectory;
-          }
-          // If neither is available, try to use Sharing with just the JSON
-          else {
-            console.warn('No file system directory available, using direct share only');
-            // Try Sharing API one more time as fallback
-            const isAvailable = await Sharing.isAvailableAsync();
-            if (isAvailable) {
-              // Create a temporary data URI or use Share API
-              const result = await Share.share({
-                message: backupJson,
-                title: fileName
-              });
-              if (result.action === Share.sharedAction) {
-                showSuccessAlert('Backup shared successfully!');
-                return;
-              }
-            }
-            showErrorAlert('File system not available. Please ensure the app has proper permissions or try sharing the backup data manually.');
-            return;
-          }
-
-          // Ensure proper path construction (handle trailing slash)
-          const dir = directory.endsWith('/') || directory.endsWith('\\') 
-            ? directory 
-            : `${directory}/`;
-          fileUri = `${dir}${fileName}`;
-          
-          // Write the file to device storage
-          await FileSystem.writeAsStringAsync(fileUri, backupJson, {
-            encoding: FileSystem.EncodingType.UTF8,
-          });
-          
-          // Verify file was written
-          const fileInfo = await FileSystem.getInfoAsync(fileUri);
-          if (!fileInfo.exists) {
-            // If file write failed, fall back to direct share
-            console.warn('File write failed, using direct share');
-            const result = await Share.share({
-              message: backupJson,
-              title: fileName
-            });
-            if (result.action === Share.sharedAction) {
-              showSuccessAlert('Backup shared successfully!');
-              return;
-            }
-            showErrorAlert('Failed to create backup file. Please check storage permissions.');
-            return;
-          }
-          
-          // Try to share the file using expo-sharing
-          const isAvailable = await Sharing.isAvailableAsync();
-          if (isAvailable) {
-            try {
-              await Sharing.shareAsync(fileUri, {
-                mimeType: 'application/json',
-                dialogTitle: 'Save Backup File',
-                UTI: 'public.json'
-              });
-              showSuccessAlert('Backup file ready to share!');
-              return;
-            } catch (shareError) {
-              console.log('expo-sharing failed, using React Native Share:', shareError);
-              // Fallback to React Native Share API
-              const result = await Share.share({
-                message: backupJson,
-                title: fileName
-              });
-              if (result.action === Share.sharedAction) {
-                showSuccessAlert('Backup shared successfully!');
-                return;
-              }
-            }
-          } else {
-            // Sharing not available, use React Native Share
-            const result = await Share.share({
-              message: backupJson,
-              title: fileName
-            });
-            if (result.action === Share.sharedAction) {
-              showSuccessAlert('Backup shared successfully!');
-              return;
-            }
-          }
-        } catch (fileError) {
-          console.error('File system error:', fileError);
-          // Last resort: try direct share again
-          try {
-            const result = await Share.share({
-              message: backupJson,
-              title: fileName
-            });
-            if (result.action === Share.sharedAction) {
-              showSuccessAlert('Backup shared successfully!');
-              return;
-            }
-          } catch (finalError) {
-            const errorMessage = fileError instanceof Error ? fileError.message : 'Unknown error';
-            showErrorAlert(`Failed to export backup: ${errorMessage}. Please try again.`);
-          }
+        // Share directly with JSON text
+        const shareResult = await Share.share({
+          message: backupJson,
+          title: fileName
+        });
+        
+        if (shareResult.action === Share.sharedAction) {
+          showSuccessAlert('Backup shared successfully!');
         }
       }
     } catch (error) {
-      console.error('Error exporting data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      showErrorAlert(`Failed to export backup: ${errorMessage}. Please try again.`);
+      console.error('Error sharing backup:', error);
+      showErrorAlert(`Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  };
+
+  const handleExportData = async () => {
+    // Show options dialog instead of directly exporting
+    setShowExportOptions(true);
   };
 
   const handleImportData = async (backupJson: string) => {
@@ -518,6 +475,40 @@ export function Settings() {
               }
             ]}
         onClose={() => setShowImportOptions(false)}
+        verticalButtons={true}
+      />
+
+      {/* Export Options Alert */}
+      <CustomAlert
+        visible={showExportOptions}
+        title="Export Backup"
+        message="Choose how you want to export your backup:"
+        buttons={[
+          {
+            text: 'Download to Device',
+            onPress: async () => {
+              setShowExportOptions(false);
+              await handleDownloadBackup();
+            },
+            style: 'default'
+          },
+          {
+            text: 'Share Backup',
+            onPress: async () => {
+              setShowExportOptions(false);
+              await handleShareBackup();
+            },
+            style: 'default'
+          },
+          {
+            text: 'Cancel',
+            onPress: () => {
+              setShowExportOptions(false);
+            },
+            style: 'cancel'
+          }
+        ]}
+        onClose={() => setShowExportOptions(false)}
         verticalButtons={true}
       />
 
