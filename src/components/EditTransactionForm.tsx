@@ -92,7 +92,9 @@ export function EditTransactionForm() {
     const amountDifference = newAmount - oldAmount;
 
     // Create a date with the selected date but preserve the original time if possible
-    const selectedDate = new Date(formData.date);
+    // Parse date string as local midnight to avoid timezone issues
+    const [year, month, day] = formData.date.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day); // month is 0-indexed
     const originalDate = new Date(transaction.date);
     const transactionDate = new Date(selectedDate);
     
@@ -116,15 +118,43 @@ export function EditTransactionForm() {
 
     dispatch({ type: 'UPDATE_TRANSACTION', payload: updatedTransaction });
     
-    // Update account balance if there's a difference
-    if (amountDifference !== 0) {
+    // Handle account balance updates
+    const accountChanged = transaction.accountId !== formData.accountId;
+    
+    if (accountChanged) {
+      // If account changed, reverse the transaction from old account and apply to new account
+      if (transaction.accountId) {
+        // Reverse the old transaction from the old account
+        const oldAccountAmount = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+        dispatch({ 
+          type: 'UPDATE_ACCOUNT_BALANCE', 
+          payload: { 
+            accountId: transaction.accountId, 
+            amount: oldAccountAmount
+          } 
+        });
+      }
+      
+      // Apply the new transaction to the new account
+      const newAccountAmount = formData.type === 'income' ? parseFloat(formData.amount) : -parseFloat(formData.amount);
       dispatch({ 
         type: 'UPDATE_ACCOUNT_BALANCE', 
         payload: { 
           accountId: formData.accountId, 
-          amount: amountDifference
+          amount: newAccountAmount
         } 
       });
+    } else {
+      // If account didn't change, only update balance if amount/type changed
+      if (amountDifference !== 0) {
+        dispatch({ 
+          type: 'UPDATE_ACCOUNT_BALANCE', 
+          payload: { 
+            accountId: formData.accountId, 
+            amount: amountDifference
+          } 
+        });
+      }
     }
     
     // Navigate back to previous screen

@@ -118,7 +118,9 @@ export function AddTransactionForm() {
     }
 
     // Create a date with the selected date but current time
-    const selectedDate = new Date(formData.date);
+    // Parse date string as local midnight to avoid timezone issues
+    const [year, month, day] = formData.date.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day); // month is 0-indexed
     const now = new Date();
     const transactionDate = new Date(selectedDate);
     transactionDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
