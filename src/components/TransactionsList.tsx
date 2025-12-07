@@ -103,24 +103,8 @@ export function TransactionsList() {
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
       () => {
-        // Find the transaction to get its account info
-        const transaction = state.transactions.find(t => t.id === id);
-        
-        if (transaction && transaction.accountId) {
-          // Calculate the amount to subtract from account balance
-          const amountToSubtract = transaction.type === 'income' 
-            ? -transaction.amount  // Subtract income
-            : transaction.amount;  // Add back expense
-          
-          // Update account balance
-          dispatch({ 
-            type: 'UPDATE_ACCOUNT_BALANCE', 
-            payload: { 
-              accountId: transaction.accountId, 
-              amount: amountToSubtract
-            } 
-          });
-        }
+        // Note: Account balance is now calculated dynamically from transactions,
+        // so we no longer need to update the stored balance field.
         
         // Delete the transaction
         dispatch({ type: 'DELETE_TRANSACTION', payload: id });

@@ -25,7 +25,6 @@ type AppAction =
   | { type: 'RESET_CATEGORIES' }
   | { type: 'ADD_ACCOUNT'; payload: Account }
   | { type: 'DELETE_ACCOUNT'; payload: string }
-  | { type: 'UPDATE_ACCOUNT_BALANCE'; payload: { accountId: string; amount: number } }
   | { type: 'SET_CURRENCY'; payload: Currency }
   | { type: 'SET_SCREEN'; payload: Screen }
   | { type: 'SET_SCREEN_WITH_ACCOUNT'; payload: { screen: Screen; accountId: string | null } }
@@ -190,15 +189,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         accounts: state.accounts.filter(a => a.id !== action.payload)
-      };
-    case 'UPDATE_ACCOUNT_BALANCE':
-      return {
-        ...state,
-        accounts: state.accounts.map(account => 
-          account.id === action.payload.accountId 
-            ? { ...account, balance: account.balance + action.payload.amount }
-            : account
-        )
       };
     case 'SET_CURRENCY':
       return {

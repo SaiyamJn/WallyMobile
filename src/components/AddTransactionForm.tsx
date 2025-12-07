@@ -54,7 +54,7 @@ export function AddTransactionForm() {
     }, 0);
   };
 
-  // Check if accounts exist when component loads
+  // Check if accounts exist when component loads or when accounts change
   useEffect(() => {
     if (state.accounts.length === 0) {
       showConfirmAlert(
@@ -64,7 +64,7 @@ export function AddTransactionForm() {
         () => dispatch({ type: 'GO_BACK' })
       );
     }
-  }, []);
+  }, [state.accounts.length]);
 
   // Sync selectedDate with formData.date
   useEffect(() => {
@@ -144,20 +144,8 @@ export function AddTransactionForm() {
 
     dispatch({ type: 'ADD_TRANSACTION', payload: transaction });
     
-    // Update the account balance based on transaction type
-    if (formData.accountId) {
-      const amount = formData.type === 'income' 
-        ? parseFloat(formData.amount) 
-        : -parseFloat(formData.amount);
-      
-      dispatch({ 
-        type: 'UPDATE_ACCOUNT_BALANCE', 
-        payload: { 
-          accountId: formData.accountId, 
-          amount: amount
-        } 
-      });
-    }
+    // Note: Account balance is now calculated dynamically from transactions,
+    // so we no longer need to update the stored balance field.
     
     // Reset form
     setFormData({

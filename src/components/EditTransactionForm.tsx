@@ -94,11 +94,6 @@ export function EditTransactionForm() {
       return;
     }
 
-    // Calculate the difference in amount for account balance update
-    const oldAmount = transaction.type === 'income' ? transaction.amount : -transaction.amount;
-    const newAmount = formData.type === 'income' ? parseFloat(formData.amount) : -parseFloat(formData.amount);
-    const amountDifference = newAmount - oldAmount;
-
     // Create a date with the selected date but preserve the original time if possible
     // Parse date string as local midnight to avoid timezone issues
     const [year, month, day] = formData.date.split('-').map(Number);
@@ -126,44 +121,8 @@ export function EditTransactionForm() {
 
     dispatch({ type: 'UPDATE_TRANSACTION', payload: updatedTransaction });
     
-    // Handle account balance updates
-    const accountChanged = transaction.accountId !== formData.accountId;
-    
-    if (accountChanged) {
-      // If account changed, reverse the transaction from old account and apply to new account
-      if (transaction.accountId) {
-        // Reverse the old transaction from the old account
-        const oldAccountAmount = transaction.type === 'income' ? -transaction.amount : transaction.amount;
-        dispatch({ 
-          type: 'UPDATE_ACCOUNT_BALANCE', 
-          payload: { 
-            accountId: transaction.accountId, 
-            amount: oldAccountAmount
-          } 
-        });
-      }
-      
-      // Apply the new transaction to the new account
-      const newAccountAmount = formData.type === 'income' ? parseFloat(formData.amount) : -parseFloat(formData.amount);
-      dispatch({ 
-        type: 'UPDATE_ACCOUNT_BALANCE', 
-        payload: { 
-          accountId: formData.accountId, 
-          amount: newAccountAmount
-        } 
-      });
-    } else {
-      // If account didn't change, only update balance if amount/type changed
-      if (amountDifference !== 0) {
-        dispatch({ 
-          type: 'UPDATE_ACCOUNT_BALANCE', 
-          payload: { 
-            accountId: formData.accountId, 
-            amount: amountDifference
-          } 
-        });
-      }
-    }
+    // Note: Account balance is now calculated dynamically from transactions,
+    // so we no longer need to update the stored balance field.
     
     // Navigate back to previous screen
     dispatch({ type: 'GO_BACK' });
@@ -275,21 +234,8 @@ export function EditTransactionForm() {
       'Delete Transaction',
       'Are you sure you want to delete this transaction?',
       () => {
-        // Calculate the amount to subtract from account balance
-        const amountToSubtract = transaction.type === 'income' 
-          ? -transaction.amount  // Subtract income
-          : transaction.amount;  // Add back expense
-        
-        // Update account balance
-        if (transaction.accountId) {
-          dispatch({ 
-            type: 'UPDATE_ACCOUNT_BALANCE', 
-            payload: { 
-              accountId: transaction.accountId, 
-              amount: amountToSubtract
-            } 
-          });
-        }
+        // Note: Account balance is now calculated dynamically from transactions,
+        // so we no longer need to update the stored balance field.
         
         // Delete the transaction
         dispatch({ type: 'DELETE_TRANSACTION', payload: transaction.id });
