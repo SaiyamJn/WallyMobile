@@ -31,7 +31,7 @@ export function EditTransactionForm() {
     type: 'expense' as 'income' | 'expense',
     category: '',
     description: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0], // Initialize with current date to prevent "Invalid Date"
     accountId: ''
   });
   const [showAccountModal, setShowAccountModal] = useState(false);

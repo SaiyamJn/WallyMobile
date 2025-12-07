@@ -505,7 +505,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!account.id || !account.name || !account.type || !account.icon || !account.color) {
           return { valid: false, message: 'Invalid backup file: Accounts have invalid structure' };
         }
-        if (account.type !== 'bank' && account.type !== 'cash' && account.type !== 'credit' && account.type !== 'investment') {
+        if (account.type !== 'trip' && account.type !== 'savings' && account.type !== 'investment' && account.type !== 'other') {
           return { valid: false, message: 'Invalid backup file: Invalid account type' };
         }
       }
