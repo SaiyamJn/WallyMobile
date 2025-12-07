@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
-import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
+import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime, getMonthYearString, isTransactionInMonth, isTransactionBeforeMonth } from '../utils/transactionUtils';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 
@@ -12,16 +12,33 @@ export function TransactionsList() {
   const { alertState, hideAlert, showDeleteAlert } = useCustomAlert();
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [localSelectedAccountId, setLocalSelectedAccountId] = useState<string | null>(state.selectedAccountId);
+  
+  // Month selector state - default to current month
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Use context selectedAccountId if available, otherwise use local state
   const selectedAccountId = state.selectedAccountId !== null ? state.selectedAccountId : localSelectedAccountId;
+
+  // Calculate carry forward balance (all transactions before selected month)
+  const carryForwardBalance = state.transactions
+    .filter(t => {
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return accountMatch && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
+    })
+    .reduce((sum, t) => {
+      const convertedAmount = convertAmount(t.amount, t.currency, state.currentCurrency.code);
+      return sum + (t.type === 'income' ? convertedAmount : -convertedAmount);
+    }, 0);
 
   // Filter and sort transactions with newest first (same as Dashboard)
   const filteredTransactions = state.transactions
     .filter(t => {
       const typeMatch = filter === 'all' || t.type === filter;
       const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return typeMatch && accountMatch;
+      const monthMatch = isTransactionInMonth(t.date, selectedMonth, selectedYear);
+      return typeMatch && accountMatch && monthMatch;
     })
     .sort((a, b) => {
       // Handle both full datetime and date-only formats
@@ -50,6 +67,35 @@ export function TransactionsList() {
   const sortedDates = Object.keys(groupedTransactions).sort((a, b) => {
     return new Date(b).getTime() - new Date(a).getTime();
   });
+
+  // Get first day of selected month for carry forward display
+  const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).toDateString();
+  
+  // Check if we should show carry forward (only if there are transactions in the month or carry forward > 0)
+  const shouldShowCarryForward = carryForwardBalance !== 0 || filteredTransactions.length > 0;
+
+  // Helper function to navigate months
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    let newMonth = selectedMonth;
+    let newYear = selectedYear;
+    
+    if (direction === 'prev') {
+      newMonth--;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear--;
+      }
+    } else {
+      newMonth++;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear++;
+      }
+    }
+    
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+  };
 
 
   const handleDeleteTransaction = (id: string) => {
@@ -102,78 +148,123 @@ export function TransactionsList() {
       {/* Account Filter */}
       {state.accounts.length > 0 && (
         <View style={styles.accountFilterContainer}>
-          {state.accounts.length > 2 && (
-            <Text style={styles.scrollHint}>← Swipe to see all accounts →</Text>
-          )}
-          <View style={styles.accountFilterWrapper}>
+          <View style={styles.accountFilterPillWrapper}>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={state.accounts.length > 2}
               style={styles.accountFilterScroll}
               contentContainerStyle={styles.accountFilterContent}
+              bounces={false}
             >
-            <TouchableOpacity
-              style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
-              onPress={() => {
-                setLocalSelectedAccountId(null);
-                dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: null });
-              }}
-            >
-              <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
-                All Accounts
-              </Text>
-            </TouchableOpacity>
-            {state.accounts.map((account) => (
               <TouchableOpacity
-                key={account.id}
-                style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
                 onPress={() => {
-                  setLocalSelectedAccountId(account.id);
-                  dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
+                  setLocalSelectedAccountId(null);
+                  dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: null });
                 }}
               >
-                <Icon name={account.icon} size={ICON_SIZES.SM} />
-                <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
-                  {account.name}
+                <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
+                  All
                 </Text>
               </TouchableOpacity>
-            ))}
+              {state.accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                  onPress={() => {
+                    setLocalSelectedAccountId(account.id);
+                    dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: account.id });
+                  }}
+                >
+                  <View style={styles.accountIconContainer}>
+                    <Icon name={account.icon} size={16} />
+                  </View>
+                  <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
+                    {account.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
         </View>
       )}
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
+      {/* Month Selector */}
+      <View style={styles.monthSelectorContainer}>
         <TouchableOpacity
-          style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
-          onPress={() => setFilter('all')}
+          style={styles.monthNavButton}
+          onPress={() => navigateMonth('prev')}
         >
-          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-            All
-          </Text>
+          <Text style={styles.monthNavText}>‹</Text>
         </TouchableOpacity>
+        <View style={styles.monthDisplay}>
+          <Text style={styles.monthText}>{getMonthYearString(selectedMonth, selectedYear)}</Text>
+        </View>
         <TouchableOpacity
-          style={[styles.filterButton, filter === 'income' && styles.filterButtonActive]}
-          onPress={() => setFilter('income')}
+          style={styles.monthNavButton}
+          onPress={() => navigateMonth('next')}
         >
-          <Text style={[styles.filterText, filter === 'income' && styles.filterTextActive]}>
-            Income
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'expense' && styles.filterButtonActive]}
-          onPress={() => setFilter('expense')}
-        >
-          <Text style={[styles.filterText, filter === 'expense' && styles.filterTextActive]}>
-            Expense
-          </Text>
+          <Text style={styles.monthNavText}>›</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <View style={styles.filterPillWrapper}>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
+            onPress={() => setFilter('all')}
+          >
+            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'income' && styles.filterButtonActive]}
+            onPress={() => setFilter('income')}
+          >
+            <Text style={[styles.filterText, filter === 'income' && styles.filterTextActive]}>
+              Income
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'expense' && styles.filterButtonActive]}
+            onPress={() => setFilter('expense')}
+          >
+            <Text style={[styles.filterText, filter === 'expense' && styles.filterTextActive]}>
+              Expense
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Transactions List */}
-      {filteredTransactions.length > 0 ? (
+      {(filteredTransactions.length > 0 || shouldShowCarryForward) ? (
         <View style={styles.transactionsList}>
+          {/* Carry Forward Entry - Show at the start if there's a balance or transactions */}
+          {shouldShowCarryForward && (
+            <View style={styles.dateGroup}>
+              <View style={[styles.transactionItem, styles.carryForwardItem]}>
+                <View style={styles.transactionLeft}>
+                  <View style={[styles.categoryIconContainer, { backgroundColor: '#3b82f620' }]}>
+                    <Icon name="balance" size={ICON_SIZES.TRANSACTION} />
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionCategory}>Carry Forward</Text>
+                    <Text style={styles.transactionDescription}>Balance from previous month</Text>
+                  </View>
+                </View>
+                <View style={styles.transactionRight}>
+                  <View style={styles.amountContainer}>
+                    <Text style={[styles.transactionAmount, { color: carryForwardBalance >= 0 ? '#10b981' : '#ef4444' }]}>
+                      {formatCurrency(carryForwardBalance)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+          
           {sortedDates.map((dateString) => (
             <View key={dateString} style={styles.dateGroup}>
               <Text style={styles.dateHeader}>{formatDateHeader(dateString)}</Text>
@@ -244,8 +335,8 @@ export function TransactionsList() {
           <Text style={styles.emptyTitle}>No transactions found</Text>
           <Text style={styles.emptyText}>
             {filter === 'all' 
-              ? "No transactions yet"
-              : `No ${filter} transactions`
+              ? `No transactions for ${getMonthYearString(selectedMonth, selectedYear)}`
+              : `No ${filter} transactions for ${getMonthYearString(selectedMonth, selectedYear)}`
             }
           </Text>
           <TouchableOpacity
@@ -278,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 12,
   },
   title: {
@@ -288,8 +379,8 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#202020ff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 12,
   },
   addButtonText: {
@@ -298,30 +389,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   filterContainer: {
+    marginBottom: 12,
+    marginTop: 0,
+    paddingHorizontal: 0,
+    paddingTop: 2,
+    paddingBottom: 2,
+    overflow: 'visible',
+  },
+  filterPillWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#202020ff',
-    borderRadius: 12,
-    padding: 6,
-    marginBottom: 16,
-    gap: 6,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    gap: 3,
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    borderRadius: 16,
+    minHeight: 36,
   },
   filterButtonActive: {
-    backgroundColor: '#3e3e3eff',
-    transform: [{ scale: 1.02 }],
+    backgroundColor: '#10b981',
   },
   filterText: {
-    color: '#9ca3af',
+    color: '#6b7280',
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 16,
   },
   filterTextActive: {
     color: '#ffffff',
+    fontWeight: '700',
   },
  scrollView: {
     flex: 1,
@@ -331,27 +434,27 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingBottom: 120, // Increased padding to prevent overlap with bottom navigation
-    paddingTop: 50,
+    paddingTop: 40,
   },
   transactionsList: {
     gap: 0,
   },
   dateGroup: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   dateHeader: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 12,
-    marginTop: 8,
+    marginBottom: 8,
+    marginTop: 4,
     paddingHorizontal: 4,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 4,
     borderRadius: 8,
     marginVertical: 1,
@@ -360,7 +463,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: 10,
   },
   categoryIconContainer: {
     width: 36,
@@ -452,53 +555,103 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   accountFilterContainer: {
-    marginBottom: 8,
+    marginBottom: 12,
+    marginTop: 0,
+    paddingHorizontal: 0,
+    paddingTop: 4,
+    paddingBottom: 4,
+    overflow: 'visible',
   },
-  accountFilterWrapper: {
-    position: 'relative',
+  accountFilterPillWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
   accountFilterScroll: {
-    maxHeight: 50,
+    overflow: 'visible',
   },
   accountFilterContent: {
-    paddingRight: 20,
-    paddingLeft: 4,
-    gap: 12,
+    paddingRight: 0,
+    paddingLeft: 0,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 4,
+    alignItems: 'center',
   },
   accountFilterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#202020ff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginRight: 1,
-    gap: 12,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 5,
+    minHeight: 36,
   },
   accountFilterButtonActive: {
-    backgroundColor: '#3e3e3eff',
-    transform: [{ scale: 1.02 }],
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
   },
-  accountFilterIcon: {
-    fontSize: 16,
+  accountIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   accountFilterText: {
-    color: '#9ca3af',
+    color: '#6b7280',
     fontSize: 14,
     fontWeight: '600',
   },
   accountFilterTextActive: {
     color: '#ffffff',
+    fontWeight: '700',
   },
   transactionAccount: {
     fontSize: 12,
     color: '#6b7280',
     marginBottom: 4,
   },
-  scrollHint: {
-    fontSize: 12,
+  monthSelectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 12,
+    gap: 0,
+  },
+  monthNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthNavText: {
+    fontSize: 20,
     color: '#9ca3af',
-    textAlign: 'center',
-    marginBottom: 8,
+    fontWeight: '600',
+  },
+  monthDisplay: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  carryForwardItem: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginVertical: 2,
   },
 });

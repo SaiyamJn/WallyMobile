@@ -83,8 +83,12 @@ const STORAGE_KEYS = {
   ACCOUNTS: 'wally_accounts',
   CURRENCY: 'wally_currency',
   SCREEN: 'wally_screen',
-  NAVIGATION: 'wally_navigation'
+  NAVIGATION: 'wally_navigation',
+  DATA_VERSION: 'wally_data_version'
 };
+
+// Data version for migration support
+const CURRENT_DATA_VERSION = '1.0.0';
 
 // Storage functions
 const saveToStorage = async (key: string, data: any) => {
@@ -294,12 +298,24 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
+// Backup data interface
+export interface BackupData {
+  version: string;
+  timestamp: string;
+  transactions: Transaction[];
+  categories: Category[];
+  accounts: Account[];
+  currentCurrency: Currency;
+}
+
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
   currencies: Currency[];
   convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => number;
   formatCurrency: (amount: number, currency?: Currency) => string;
+  exportData: () => Promise<string>;
+  importData: (backupJson: string) => Promise<{ success: boolean; message: string }>;
 } | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -315,18 +331,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         if (hasExistingData) {
           // Load existing data from storage
-          const [transactions, categories, accounts, currency] = await Promise.all([
+          const [transactions, categories, accounts, currency, dataVersion] = await Promise.all([
             loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []),
             loadFromStorage(STORAGE_KEYS.CATEGORIES, defaultCategories),
             loadFromStorage(STORAGE_KEYS.ACCOUNTS, []),
-            loadFromStorage(STORAGE_KEYS.CURRENCY, initialState.currentCurrency)
+            loadFromStorage(STORAGE_KEYS.CURRENCY, initialState.currentCurrency),
+            loadFromStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION)
           ]);
 
+          // Future: Add migration logic here if dataVersion !== CURRENT_DATA_VERSION
+          if (dataVersion !== CURRENT_DATA_VERSION) {
+            // Migration logic can be added here in the future
+          }
+
+          // Ensure data integrity - validate and fix if needed
+          const validTransactions = Array.isArray(transactions) ? transactions : [];
+          const validCategories = Array.isArray(categories) && categories.length > 0 ? categories : defaultCategories;
+          const validAccounts = Array.isArray(accounts) ? accounts : [];
+          const validCurrency = currency && typeof currency === 'object' && currency.code ? currency : initialState.currentCurrency;
+
           dispatch({ type: 'LOAD_DATA', payload: {
-            transactions,
-            categories,
-            accounts,
-            currentCurrency: currency,
+            transactions: validTransactions,
+            categories: validCategories,
+            accounts: validAccounts,
+            currentCurrency: validCurrency,
             currentScreen: 'dashboard',
             navigationHistory: ['dashboard']
           }});
@@ -369,13 +397,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
           saveToStorage(STORAGE_KEYS.TRANSACTIONS, state.transactions),
           saveToStorage(STORAGE_KEYS.CATEGORIES, state.categories),
           saveToStorage(STORAGE_KEYS.ACCOUNTS, state.accounts),
-          saveToStorage(STORAGE_KEYS.CURRENCY, state.currentCurrency)
+          saveToStorage(STORAGE_KEYS.CURRENCY, state.currentCurrency),
+          saveToStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION)
           // Don't save screen and navigation - always start on dashboard
         ]);
       };
       saveData();
     }
   }, [state, isLoaded]);
+
+  // Export data as JSON string
+  const exportData = async (): Promise<string> => {
+    const backupData: BackupData = {
+      version: CURRENT_DATA_VERSION,
+      timestamp: new Date().toISOString(),
+      transactions: state.transactions,
+      categories: state.categories,
+      accounts: state.accounts,
+      currentCurrency: state.currentCurrency
+    };
+    return JSON.stringify(backupData, null, 2);
+  };
+
+  // Import data from JSON string
+  const importData = async (backupJson: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const backupData: BackupData = JSON.parse(backupJson);
+      
+      // Validate backup data structure
+      if (!backupData.version || !backupData.transactions || !backupData.categories || !backupData.accounts) {
+        return { success: false, message: 'Invalid backup file format' };
+      }
+
+      // Check version compatibility (for future migrations)
+      if (backupData.version !== CURRENT_DATA_VERSION) {
+        // For now, we'll still allow import but could add migration logic here
+        console.warn(`Backup version ${backupData.version} differs from current ${CURRENT_DATA_VERSION}`);
+      }
+
+      // Import the data
+      dispatch({ type: 'LOAD_DATA', payload: {
+        transactions: backupData.transactions || [],
+        categories: backupData.categories || defaultCategories,
+        accounts: backupData.accounts || [],
+        currentCurrency: backupData.currentCurrency || initialState.currentCurrency,
+        currentScreen: 'dashboard',
+        navigationHistory: ['dashboard']
+      }});
+
+      // Save to storage
+      await Promise.all([
+        saveToStorage(STORAGE_KEYS.TRANSACTIONS, backupData.transactions || []),
+        saveToStorage(STORAGE_KEYS.CATEGORIES, backupData.categories || defaultCategories),
+        saveToStorage(STORAGE_KEYS.ACCOUNTS, backupData.accounts || []),
+        saveToStorage(STORAGE_KEYS.CURRENCY, backupData.currentCurrency || initialState.currentCurrency),
+        saveToStorage(STORAGE_KEYS.DATA_VERSION, backupData.version || CURRENT_DATA_VERSION)
+      ]);
+
+      return { success: true, message: 'Data imported successfully' };
+    } catch (error) {
+      console.error('Error importing data:', error);
+      return { success: false, message: 'Failed to import data. Please check the backup file format.' };
+    }
+  };
 
   const convertAmount = (amount: number, fromCurrency: string, toCurrency: string) => {
     const fromRate = currencies.find(c => c.code === fromCurrency)?.rate || 1;
@@ -392,8 +476,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Show loading state while data is being loaded
+  // Return a minimal provider with default state to prevent crashes
   if (!isLoaded) {
-    return null; // or a loading component
+    return (
+      <AppContext.Provider value={{
+        state: initialState,
+        dispatch: () => {}, // No-op dispatch during loading
+        currencies,
+        convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => {
+          const fromRate = currencies.find(c => c.code === fromCurrency)?.rate || 1;
+          const toRate = currencies.find(c => c.code === toCurrency)?.rate || 1;
+          const usdAmount = amount / fromRate;
+          return usdAmount * toRate;
+        },
+        formatCurrency: (amount: number, currency = initialState.currentCurrency) => {
+          return `${currency.symbol}${amount.toLocaleString('en-US', { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 2 
+          })}`;
+        },
+        exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency }),
+        importData: async () => ({ success: false, message: 'App is still loading' })
+      }}>
+        {children}
+      </AppContext.Provider>
+    );
   }
 
   return (
@@ -402,7 +509,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dispatch,
       currencies,
       convertAmount,
-      formatCurrency
+      formatCurrency,
+      exportData,
+      importData
     }}>
       {children}
     </AppContext.Provider>

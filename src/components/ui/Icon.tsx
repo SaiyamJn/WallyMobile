@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, Image, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { getIconSource, getEmojiFallback, shouldUseAsset, IconName } from '../../utils/iconUtils';
+import { getIconSource, getEmojiFallback, shouldUseAsset, hasIcon, IconName } from '../../utils/iconUtils';
 import { ICON_SIZES } from '../../constants/iconSizes';
 
 // Determine which icons should have tinting applied
@@ -28,27 +28,46 @@ interface IconProps {
 }
 
 export function Icon({ name, size = ICON_SIZES.LG, color, style }: IconProps) {
+  const [imageError, setImageError] = React.useState(false);
   const useAsset = shouldUseAsset(name);
   
+  // Reset error state when name changes
+  React.useEffect(() => {
+    setImageError(false);
+  }, [name]);
+  
   // Try to use asset if available and enabled
-  if (useAsset && typeof name === 'string') {
+  if (useAsset && typeof name === 'string' && !imageError) {
     try {
-      const iconSource = getIconSource(name as IconName);
-      return (
-        <Image
-          source={iconSource}
-          style={[
-            styles.icon,
-            { width: size, height: size },
-            // Only apply tinting for specific icons that work well with it
-            color && shouldApplyTinting(name) && { tintColor: color },
-            style
-          ]}
-          resizeMode="contain"
-        />
-      );
+      // Check if icon exists before trying to get source
+      if (hasIcon(name)) {
+        const iconSource = getIconSource(name as IconName);
+        return (
+          <Image
+            key={`icon-${name}-${size}`}
+            source={iconSource}
+            style={[
+              styles.icon,
+              { width: size, height: size },
+              // Only apply tinting for specific icons that work well with it
+              color && shouldApplyTinting(name) && { tintColor: color },
+              style
+            ]}
+            resizeMode="contain"
+            onError={() => {
+              // Fall back to emoji on image load error
+              setImageError(true);
+            }}
+            onLoad={() => {
+              // Reset error state on successful load
+              setImageError(false);
+            }}
+          />
+        );
+      }
     } catch (error) {
       // If asset fails, fall back to emoji
+      console.warn(`Icon asset error for ${name}:`, error);
     }
   }
   

@@ -1,14 +1,16 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, TextInput, Platform } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
+import { CustomInputModal } from './ui/CustomInputModal';
 
 export function Settings() {
-  const { state, dispatch, currencies } = useApp();
-  const { alertState, hideAlert, showDeleteAlert, showSuccessAlert } = useCustomAlert();
+  const { state, dispatch, currencies, exportData, importData } = useApp();
+  const { alertState, hideAlert, showDeleteAlert, showSuccessAlert, showErrorAlert } = useCustomAlert();
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const handleCurrencyChange = (currency: typeof currencies[0]) => {
     dispatch({ type: 'SET_CURRENCY', payload: currency });
@@ -18,11 +20,60 @@ export function Settings() {
   const handleClearData = () => {
     showDeleteAlert(
       'Clear All Data',
-      'This will delete all transactions, categories, and accounts. This action cannot be undone.',
+      'This will delete all transactions, categories, and accounts. This action cannot be undone. Make sure you have a backup before proceeding.',
       () => {
         dispatch({ type: 'CLEAR_ALL_DATA' });
       }
     );
+  };
+
+  const handleExportData = async () => {
+    try {
+      const backupJson = await exportData();
+      const fileName = `Wally_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      
+      if (Platform.OS === 'web') {
+        // For web, create a download link
+        const blob = new Blob([backupJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showSuccessAlert('Backup exported successfully!');
+      } else {
+        // For mobile, use Share API
+        const result = await Share.share({
+          message: backupJson,
+          title: fileName
+        });
+        
+        if (result.action === Share.sharedAction) {
+          showSuccessAlert('Backup shared successfully!');
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      showErrorAlert('Failed to export backup. Please try again.');
+    }
+  };
+
+  const handleImportData = async (backupJson: string) => {
+    if (!backupJson.trim()) {
+      showErrorAlert('Please paste your backup data');
+      return;
+    }
+
+    const result = await importData(backupJson);
+    if (result.success) {
+      setShowImportModal(false);
+      showSuccessAlert(result.message);
+    } else {
+      showErrorAlert(result.message);
+    }
   };
 
   return (
@@ -60,6 +111,30 @@ export function Settings() {
           
           <TouchableOpacity
             style={styles.dataButton}
+            onPress={handleExportData}
+          >
+            <Icon name="save" size={ICON_SIZES.ACTION} />
+            <View style={styles.dataInfo}>
+              <Text style={styles.dataTitle}>Export Backup</Text>
+              <Text style={styles.dataDescription}>Save your data to a backup file</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dataButton}
+            onPress={() => setShowImportModal(true)}
+          >
+            <Icon name="edit" size={ICON_SIZES.ACTION} />
+            <View style={styles.dataInfo}>
+              <Text style={styles.dataTitle}>Import Backup</Text>
+              <Text style={styles.dataDescription}>Restore data from a backup file</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.dataButton}
             onPress={handleClearData}
           >
             <Icon name="delete" size={ICON_SIZES.ACTION} />
@@ -69,6 +144,19 @@ export function Settings() {
             </View>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Backup Warning */}
+      <View style={styles.section}>
+        <View style={styles.warningCard}>
+          <Text style={styles.warningTitle}>⚠️ Important: Data Backup</Text>
+          <Text style={styles.warningText}>
+            Your data is automatically saved locally. However, if you uninstall the app, all data will be permanently deleted.
+          </Text>
+          <Text style={styles.warningText}>
+            Before uninstalling, make sure to export a backup using the "Export Backup" option above. You can restore it later using "Import Backup".
+          </Text>
         </View>
       </View>
 
@@ -108,7 +196,7 @@ export function Settings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>3.0.0</Text>
+            <Text style={styles.infoValue}>4.0.0</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total Transactions</Text>
@@ -125,7 +213,7 @@ export function Settings() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.aboutCard}>
-          <Text style={styles.appName}>WallyMobile</Text>
+          <Text style={styles.appName}>Wally</Text>
           <Text style={styles.appDescription}>
             A simple and elegant personal finance manager to help you track your income and expenses.
           </Text>
@@ -145,6 +233,20 @@ export function Settings() {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+
+      {/* Import Backup Modal */}
+      <CustomInputModal
+        visible={showImportModal}
+        title="Import Backup"
+        message="Paste your backup JSON data below. This will replace all current data."
+        placeholder="Paste backup JSON here..."
+        keyboardType="default"
+        multiline={true}
+        onConfirm={handleImportData}
+        onCancel={() => {
+          setShowImportModal(false);
+        }}
       />
     </ScrollView>
   );
@@ -318,5 +420,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
     lineHeight: 24,
+  },
+  warningCard: {
+    backgroundColor: '#f59e0b20',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  warningTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginBottom: 12,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    lineHeight: 20,
+    marginBottom: 8,
   },
 });

@@ -6,6 +6,7 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
+import { categoryIconOptions } from '../utils/iconUtils';
 
 export function AddTransactionForm() {
   const { state, dispatch } = useApp();
@@ -20,9 +21,15 @@ export function AddTransactionForm() {
   });
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date(formData.date));
   const [calendarViewDate, setCalendarViewDate] = useState(new Date(formData.date));
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    icon: 'card' as string,
+    color: '#3b82f6'
+  });
 
   // Refs for input fields
   const amountInputRef = useRef<TextInput>(null);
@@ -498,12 +505,27 @@ export function AddTransactionForm() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowCategoryModal(false)}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
+              <View style={styles.modalHeaderButtons}>
+                <TouchableOpacity
+                  style={styles.modalAddButton}
+                  onPress={() => {
+                    setNewCategory({
+                      name: '',
+                      icon: 'card',
+                      color: '#3b82f6'
+                    });
+                    setShowAddCategoryModal(true);
+                  }}
+                >
+                  <Text style={styles.modalAddButtonText}>+</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowCategoryModal(false)}
+                >
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView style={styles.modalScrollView}>
               {categories.map((category) => (
@@ -531,6 +553,124 @@ export function AddTransactionForm() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Add Category Modal */}
+      {showAddCategoryModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.addCategoryModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create Category</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowAddCategoryModal(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              style={styles.addCategoryScrollView}
+              contentContainerStyle={styles.addCategoryScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Category Name */}
+              <View style={styles.addCategoryInputGroup}>
+                <Text style={styles.addCategoryLabel}>Category Name *</Text>
+                <TextInput
+                  style={styles.addCategoryInput}
+                  value={newCategory.name}
+                  onChangeText={(text) => setNewCategory({...newCategory, name: text})}
+                  placeholder="Category name"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              {/* Icon Selection */}
+              <View style={styles.addCategoryInputGroup}>
+                <Text style={styles.addCategoryLabel}>Icon</Text>
+                <Text style={styles.addCategoryScrollHint}>← Swipe to see more icons →</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={true} 
+                  style={styles.addCategoryIconSelector}
+                  contentContainerStyle={styles.addCategoryIconScrollContent}
+                  nestedScrollEnabled={true}
+                  bounces={false}
+                >
+                  {categoryIconOptions.map((icon) => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.addCategoryIconButton,
+                        newCategory.icon === icon && styles.addCategoryIconButtonActive
+                      ]}
+                      onPress={() => setNewCategory({...newCategory, icon})}
+                    >
+                      <Icon name={icon} size={ICON_SIZES.ICON_SELECTION} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Color Selection */}
+              <View style={styles.addCategoryInputGroup}>
+                <Text style={styles.addCategoryLabel}>Color</Text>
+                <View style={styles.addCategoryColorSelector}>
+                  {['#ef4444', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#84cc16'].map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.addCategoryColorButton,
+                        { backgroundColor: color },
+                        newCategory.color === color && styles.addCategoryColorButtonActive
+                      ]}
+                      onPress={() => setNewCategory({...newCategory, color})}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.addCategoryActionButtons}>
+                <TouchableOpacity
+                  style={styles.addCategoryCancelButton}
+                  onPress={() => setShowAddCategoryModal(false)}
+                >
+                  <Text style={styles.addCategoryCancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.addCategorySaveButton}
+                  onPress={() => {
+                    if (!newCategory.name.trim()) {
+                      showErrorAlert('Please enter a category name');
+                      return;
+                    }
+
+                    const category = {
+                      id: Date.now().toString(),
+                      name: newCategory.name.trim(),
+                      type: formData.type,
+                      icon: newCategory.icon,
+                      color: newCategory.color
+                    };
+
+                    dispatch({ type: 'ADD_CATEGORY', payload: category });
+                    handleInputChange('category', category.name);
+                    setShowAddCategoryModal(false);
+                    setShowCategoryModal(false);
+                    setNewCategory({ name: '', icon: 'card', color: '#3b82f6' });
+                    
+                    setTimeout(() => {
+                      focusNextField('category');
+                    }, 100);
+                  }}
+                >
+                  <Text style={styles.addCategorySaveButtonText}>Create</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -1130,5 +1270,129 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  modalHeaderButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  modalAddButton: {
+    padding: 8,
+    backgroundColor: '#10b981',
+    borderRadius: 20,
+    minWidth: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalAddButtonText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  addCategoryModalContent: {
+    backgroundColor: '#202020ff',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 20,
+  },
+  addCategoryScrollView: {
+    maxHeight: 500,
+  },
+  addCategoryScrollContent: {
+    paddingBottom: 20,
+  },
+  addCategoryInputGroup: {
+    marginBottom: 24,
+  },
+  addCategoryLabel: {
+    fontSize: 16,
+    color: '#ffffff',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  addCategoryInput: {
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 12,
+    padding: 16,
+    color: '#ffffff',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  addCategoryScrollHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  addCategoryIconSelector: {
+    marginTop: 12,
+    height: 80,
+    width: '100%',
+  },
+  addCategoryIconScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 20,
+    gap: 12,
+  },
+  addCategoryIconButton: {
+    padding: 16,
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 12,
+    minWidth: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCategoryIconButtonActive: {
+    backgroundColor: '#10b981',
+    transform: [{ scale: 1.1 }],
+  },
+  addCategoryColorSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  addCategoryColorButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  addCategoryColorButtonActive: {
+    borderColor: '#ffffff',
+  },
+  addCategoryActionButtons: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 24,
+  },
+  addCategoryCancelButton: {
+    flex: 1,
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+  },
+  addCategoryCancelButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  addCategorySaveButton: {
+    flex: 1,
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+  },
+  addCategorySaveButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

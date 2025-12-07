@@ -1,6 +1,6 @@
 # Icon Assets
 
-This folder contains all the custom icon files used in the WallyMobile app.
+This folder contains all the custom icon files used in the Wally app.
 
 ## Required Icon Files
 

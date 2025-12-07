@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 interface CustomInputModalProps {
   visible: boolean;
@@ -7,11 +7,10 @@ interface CustomInputModalProps {
   message: string;
   placeholder?: string;
   keyboardType?: 'default' | 'numeric' | 'email-address';
+  multiline?: boolean;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
-
-const { width } = Dimensions.get('window');
 
 export function CustomInputModal({ 
   visible, 
@@ -19,6 +18,7 @@ export function CustomInputModal({
   message, 
   placeholder = '', 
   keyboardType = 'default',
+  multiline = false,
   onConfirm, 
   onCancel 
 }: CustomInputModalProps) {
@@ -59,12 +59,15 @@ export function CustomInputModal({
               <Text style={styles.message}>{message}</Text>
               
               <TextInput
-                style={styles.input}
+                style={[styles.input, multiline && styles.inputMultiline]}
                 value={inputValue}
                 onChangeText={setInputValue}
                 placeholder={placeholder}
                 placeholderTextColor="#9ca3af"
                 keyboardType={keyboardType}
+                multiline={multiline}
+                numberOfLines={multiline ? 10 : 1}
+                textAlignVertical={multiline ? 'top' : 'center'}
                 autoFocus
                 selectTextOnFocus
               />
@@ -142,6 +145,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#6b7280',
+  },
+  inputMultiline: {
+    minHeight: 200,
+    maxHeight: 400,
+    textAlignVertical: 'top',
   },
   buttonContainer: {
     flexDirection: 'row',

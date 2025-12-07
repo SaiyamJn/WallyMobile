@@ -1,6 +1,6 @@
 **⚠️ IMPORTANT: Always use the latest development branch for the most up-to-date features and bug fixes!**
 
-# WallyMobile 💰
+# Wally 💰
 
 A beautiful, offline-first personal finance management app built with React Native and Expo. Track your income, expenses, and manage multiple accounts with a sleek dark theme interface.
 
@@ -75,7 +75,7 @@ npm start
 1. **Clone the repository**
    ```bash
    git clone https://github.com/SaiyamJn/WallyMobile.git
-   cd WallyMobile
+   cd Wally
    ```
 
 2. **Install dependencies**
@@ -188,7 +188,7 @@ npx expo build:android
 ## 📁 **Project Structure**
 
 ```
-WallyMobile/
+Wally/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── ui/             # Reusable UI components
@@ -245,8 +245,8 @@ WallyMobile/
 ## 🔧 **Configuration**
 
 ### **App Configuration** (`app.json`)
-- App name: WallyMobile
-- Package: com.saiyamjn.WallyMobile
+- App name: Wally
+- Package: com.saiyamjn.Wally
 - Version: 1.0.0
 - Orientation: Portrait
 - Theme: Dark
@@ -279,7 +279,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Saiyam Jn**
 - GitHub: [@SaiyamJn](https://github.com/SaiyamJn)
-- Project: [WallyMobile](https://github.com/SaiyamJn/WallyMobile)
+- Project: [Wally](https://github.com/SaiyamJn/WallyMobile)
 
 ## 🙏 **Acknowledgments**
 

@@ -139,7 +139,13 @@ export type IconName = keyof typeof iconAssets;
 
 // Get icon source by name
 export const getIconSource = (iconName: IconName): ImageSourcePropType => {
-  return iconAssets[iconName];
+  try {
+    return iconAssets[iconName];
+  } catch (error) {
+    console.warn(`Failed to get icon source for ${iconName}:`, error);
+    // Return a default icon if the requested one fails
+    return iconAssets['default'] || iconAssets['card'];
+  }
 };
 
 // Get emoji fallback for icon name

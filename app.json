@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "WallyMobile",
-    "slug": "WallyMobile",
-    "version": "3.0.0",
+    "name": "Wally",
+    "slug": "Wally",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,11 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "21"
+      "buildNumber": "40"
     },
     "android": {
-      "package": "com.saiyamjn.WallyMobile",
-      "versionCode": 21,
+      "package": "com.saiyamjn.Wally",
+      "versionCode": 40,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -27,11 +27,13 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Wally",
+      "title": "Wally"
     },
     "extra": {
       "eas": {
-        "projectId": "a3ec9d9d-1095-425e-98e5-c8a65787b4cd"
+        "projectId": "6eea3d35-2c8c-47ca-b3bd-0a08414d4861"
       }
     }
   }

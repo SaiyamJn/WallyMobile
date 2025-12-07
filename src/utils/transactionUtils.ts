@@ -46,3 +46,36 @@ export const formatTime = (dateString: string) => {
     hour12: true 
   });
 };
+
+// Month/Year utilities
+export const getMonthYear = (date: Date): { month: number; year: number } => {
+  return {
+    month: date.getMonth(),
+    year: date.getFullYear()
+  };
+};
+
+export const getMonthYearString = (month: number, year: number): string => {
+  const date = new Date(year, month, 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+export const isTransactionInMonth = (transactionDate: string, month: number, year: number): boolean => {
+  const date = new Date(transactionDate);
+  return date.getMonth() === month && date.getFullYear() === year;
+};
+
+export const isTransactionBeforeMonth = (transactionDate: string, month: number, year: number): boolean => {
+  const date = new Date(transactionDate);
+  const transactionYear = date.getFullYear();
+  const transactionMonth = date.getMonth();
+  
+  if (transactionYear < year) return true;
+  if (transactionYear === year && transactionMonth < month) return true;
+  return false;
+};
+
+export const formatMonthYear = (month: number, year: number): string => {
+  const date = new Date(year, month, 1);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};

@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../contexts/AppContext';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
-
-const { width } = Dimensions.get('window');
 
 
 export function Reports() {

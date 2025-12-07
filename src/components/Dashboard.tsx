@@ -1,41 +1,88 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
-import { getCategoryIcon, getCategoryColor, formatDate } from '../utils/transactionUtils';
+import { getCategoryIcon, getCategoryColor, formatDate, getMonthYearString, isTransactionInMonth, isTransactionBeforeMonth } from '../utils/transactionUtils';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 export function Dashboard() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
+  
+  // Month selector state - default to current month
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  
+  // Account selector state
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const currentCurrency = state.currentCurrency;
 
-  // Calculate totals in current currency
+  // Calculate carry forward balance (all transactions before selected month, filtered by account)
+  const carryForwardBalance = state.transactions
+    .filter(t => {
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return accountMatch && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
+    })
+    .reduce((sum, t) => {
+      const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
+      return sum + (t.type === 'income' ? convertedAmount : -convertedAmount);
+    }, 0);
+
+  // Calculate totals in current currency for selected month, filtered by account
   const totalIncome = state.transactions
-    .filter(t => t.type === 'income')
+    .filter(t => {
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return accountMatch && t.type === 'income' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
+    })
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
       return sum + convertedAmount;
     }, 0);
 
   const totalExpense = state.transactions
-    .filter(t => t.type === 'expense')
+    .filter(t => {
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return accountMatch && t.type === 'expense' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
+    })
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
       return sum + convertedAmount;
     }, 0);
 
-  // Calculate total balance from all accounts (converted to current currency)
-  const totalAccountBalance = state.accounts.reduce((sum, account) => {
-    const convertedAmount = convertAmount(account.balance, account.currency, currentCurrency.code);
-    return sum + convertedAmount;
-  }, 0);
+  // Calculate balance based on account selection
+  let balance: number;
+  if (selectedAccountId) {
+    // For specific account: use account balance at start of month + transactions
+    const account = state.accounts.find(a => a.id === selectedAccountId);
+    if (account) {
+      // Calculate account balance at start of selected month
+      const accountBalanceAtStart = state.transactions
+        .filter(t => {
+          return t.accountId === selectedAccountId && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
+        })
+        .reduce((sum, t) => {
+          const convertedAmount = convertAmount(t.amount, t.currency, account.currency);
+          return sum + (t.type === 'income' ? convertedAmount : -convertedAmount);
+        }, 0);
+      
+      // Convert to current currency
+      const accountBalanceConverted = convertAmount(accountBalanceAtStart, account.currency, currentCurrency.code);
+      balance = accountBalanceConverted + totalIncome - totalExpense;
+    } else {
+      balance = carryForwardBalance + totalIncome - totalExpense;
+    }
+  } else {
+    // For all accounts: carry forward + income - expense
+    balance = carryForwardBalance + totalIncome - totalExpense;
+  }
 
-  // Use account balance as the primary balance, fallback to transaction calculation if no accounts
-  const balance = state.accounts.length > 0 ? totalAccountBalance : (totalIncome - totalExpense);
-
-  // Get the 5 most recent transactions, sorted with newest first
+  // Get the 5 most recent transactions for selected month and account, sorted with newest first
   const recentTransactions = state.transactions
+    .filter(t => {
+      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
+      return accountMatch && isTransactionInMonth(t.date, selectedMonth, selectedYear);
+    })
     .sort((a, b) => {
       // Handle both full datetime and date-only formats
       const dateA = new Date(a.date).getTime();
@@ -50,6 +97,29 @@ export function Dashboard() {
     })
     .slice(0, 5);
 
+  // Helper function to navigate months
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    let newMonth = selectedMonth;
+    let newYear = selectedYear;
+    
+    if (direction === 'prev') {
+      newMonth--;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear--;
+      }
+    } else {
+      newMonth++;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear++;
+      }
+    }
+    
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+  };
+
 
 
   return (
@@ -62,8 +132,31 @@ export function Dashboard() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.welcomeText}>Welcome back!</Text>
-          <Text style={styles.subtitle}>Here's your financial overview</Text>
+          <Image 
+            source={require('../../assets/wallet.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.appName}>Wally</Text>
+        </View>
+
+        {/* Month Selector */}
+        <View style={styles.monthSelectorContainer}>
+          <TouchableOpacity
+            style={styles.monthNavButton}
+            onPress={() => navigateMonth('prev')}
+          >
+            <Text style={styles.monthNavText}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.monthDisplay}>
+            <Text style={styles.monthText}>{getMonthYearString(selectedMonth, selectedYear)}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.monthNavButton}
+            onPress={() => navigateMonth('next')}
+          >
+            <Text style={styles.monthNavText}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Balance Card */}
@@ -103,13 +196,51 @@ export function Dashboard() {
           </View>
         </View>
 
+        {/* Account Filter */}
+        {state.accounts.length > 0 && (
+          <View style={styles.accountFilterContainer}>
+            <View style={styles.accountFilterPillWrapper}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={state.accounts.length > 2}
+                style={styles.accountFilterScroll}
+                contentContainerStyle={styles.accountFilterContent}
+                bounces={false}
+              >
+                <TouchableOpacity
+                  style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
+                  onPress={() => setSelectedAccountId(null)}
+                >
+                  <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {state.accounts.map((account) => (
+                  <TouchableOpacity
+                    key={account.id}
+                    style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                    onPress={() => setSelectedAccountId(account.id)}
+                  >
+                    <View style={styles.accountIconContainer}>
+                      <Icon name={account.icon} size={16} />
+                    </View>
+                    <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
+                      {account.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        )}
+
         {/* Recent Transactions Heading */}
         <Text style={styles.sectionHeading}>Recent Transactions</Text>
 
         {/* Empty State */}
-        {state.transactions.length === 0 ? (
+        {recentTransactions.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No transactions yet</Text>
+            <Text style={styles.emptyText}>No transactions for this month</Text>
             <Text style={styles.emptySubtext}>Add your first transaction to get started</Text>
           </View>
         ) : (
@@ -163,8 +294,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 16,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   scrollView: {
     flex: 1,
@@ -175,17 +319,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
     paddingTop: 50,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '400',
   },
   balanceCard: {
     backgroundColor: '#ffffff',
@@ -227,7 +360,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
@@ -273,8 +406,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 20,
-    marginTop: 20,
+    marginBottom: 16,
+    marginTop: 0,
   },
   transactionItem: {
     flexDirection: 'row',
@@ -360,5 +493,93 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  monthSelectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 8,
+    gap: 0,
+  },
+  monthNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthNavText: {
+    fontSize: 20,
+    color: '#9ca3af',
+    fontWeight: '600',
+  },
+  monthDisplay: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  accountFilterContainer: {
+    marginBottom: 16,
+    marginTop: 0,
+    paddingHorizontal: 0,
+    paddingTop: 4,
+    paddingBottom: 4,
+    overflow: 'visible',
+  },
+  accountFilterPillWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  accountFilterScroll: {
+    overflow: 'visible',
+  },
+  accountFilterContent: {
+    paddingRight: 0,
+    paddingLeft: 0,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 4,
+    alignItems: 'center',
+  },
+  accountFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 5,
+    minHeight: 36,
+  },
+  accountFilterButtonActive: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  accountIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountFilterText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountFilterTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });

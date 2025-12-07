@@ -1,11 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
-
-const { width } = Dimensions.get('window');
 
 interface CategoryTransactionsProps {
   categoryName: string;
@@ -249,9 +247,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  categoryIcon: {
-    fontSize: 16,
   },
   transactionInfo: {
     flex: 1,

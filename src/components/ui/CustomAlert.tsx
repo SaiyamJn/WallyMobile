@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 
 interface CustomAlertProps {
   visible: boolean;
@@ -12,8 +12,6 @@ interface CustomAlertProps {
   }>;
   onClose: () => void;
 }
-
-const { width } = Dimensions.get('window');
 
 export function CustomAlert({ visible, title, message, buttons, onClose }: CustomAlertProps) {
   if (!visible) return null;
