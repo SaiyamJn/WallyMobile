@@ -28,7 +28,8 @@
       "permissions": [
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE"
-      ]
+      ],
+      "blockedPermissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png",
