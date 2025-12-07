@@ -51,22 +51,6 @@ export function Accounts() {
     setShowAddForm(false);
   };
 
-  const handleDeleteAccount = (id: string) => {
-    const account = state.accounts.find(a => a.id === id);
-    
-    if (account && account.balance !== 0) {
-      showErrorAlert('This account has a non-zero balance. Please transfer or clear the balance first.');
-      return;
-    }
-
-    showDeleteAlert(
-      'Delete Account',
-      'Are you sure you want to delete this account?',
-      () => dispatch({ type: 'DELETE_ACCOUNT', payload: id })
-    );
-  };
-
-
   // Calculate account balance from transactions
   const getAccountBalanceFromTransactions = (accountId: string) => {
     const accountTransactions = state.transactions.filter(t => t.accountId === accountId);
@@ -76,6 +60,28 @@ export function Accounts() {
       const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
       return transaction.type === 'income' ? sum + convertedAmount : sum - convertedAmount;
     }, 0);
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    const account = state.accounts.find(a => a.id === id);
+    
+    if (!account) {
+      return;
+    }
+
+    // Use the same calculation method as the UI display for consistency
+    const calculatedBalance = getAccountBalanceFromTransactions(account.id);
+    
+    if (Math.abs(calculatedBalance) > 0.01) { // Use small threshold to handle floating point precision
+      showErrorAlert('This account has a non-zero balance. Please transfer or clear the balance first.');
+      return;
+    }
+
+    showDeleteAlert(
+      'Delete Account',
+      'Are you sure you want to delete this account?',
+      () => dispatch({ type: 'DELETE_ACCOUNT', payload: id })
+    );
   };
 
   const renderAccountItem = (account: Account) => (

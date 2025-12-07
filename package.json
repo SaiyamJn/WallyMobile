@@ -1,6 +1,6 @@
 {
   "name": "wally-finance-manager",
-  "version": "4.0.0",
+  "version": "4.1.1",
   "main": "node_modules/expo/AppEntry.js",
   "private": true,
   "dependencies": {

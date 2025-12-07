@@ -271,7 +271,7 @@ The app includes comprehensive validation to ensure data integrity:
 ### **App Configuration** (`app.json`)
 - App name: Wally
 - Package: com.saiyamjn.Wally
-- Version: 4.0.0
+- Version: 4.1.1
 - Orientation: Portrait
 - Theme: Dark
 
@@ -321,7 +321,7 @@ If you have any questions or need help, please:
 
 ## ✨ **Recent Updates**
 
-### **v4.0.0 - Security & Code Quality Improvements**
+### **v4.1.1 - Security & Code Quality Improvements**
 - ✅ **Import Validation**: Added comprehensive validation to ensure only valid Wally backup files are accepted
 - ✅ **File Security**: Prevents random file uploads and invalid JSON imports
 - ✅ **Code Cleanup**: Removed unused dependencies (lucide-react-native, Tailwind CSS)
