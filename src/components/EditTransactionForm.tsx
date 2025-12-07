@@ -54,7 +54,7 @@ export function EditTransactionForm() {
         type: transaction.type,
         category: transaction.category,
         description: transaction.description,
-        date: transaction.date,
+        date: transaction.date.split('T')[0], // Extract date-only portion from ISO datetime string
         accountId: transaction.accountId || ''
       });
       setSelectedDate(new Date(transaction.date));
