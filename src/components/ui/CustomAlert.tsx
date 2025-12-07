@@ -11,9 +11,10 @@ interface CustomAlertProps {
     style?: 'default' | 'cancel' | 'destructive';
   }>;
   onClose: () => void;
+  verticalButtons?: boolean;
 }
 
-export function CustomAlert({ visible, title, message, buttons, onClose }: CustomAlertProps) {
+export function CustomAlert({ visible, title, message, buttons, onClose, verticalButtons = false }: CustomAlertProps) {
   if (!visible) return null;
 
   return (
@@ -29,15 +30,15 @@ export function CustomAlert({ visible, title, message, buttons, onClose }: Custo
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.message}>{message}</Text>
             
-            <View style={styles.buttonContainer}>
+            <View style={[styles.buttonContainer, verticalButtons && styles.buttonContainerVertical]}>
               {buttons.map((button, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
-                    styles.button,
+                    verticalButtons ? styles.buttonVertical : styles.button,
+                    !verticalButtons && buttons.length === 1 && styles.singleButton,
                     button.style === 'destructive' && styles.destructiveButton,
                     button.style === 'cancel' && styles.cancelButton,
-                    buttons.length === 1 && styles.singleButton
                   ]}
                   onPress={() => {
                     button.onPress();
@@ -101,6 +102,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  buttonContainerVertical: {
+    flexDirection: 'column',
+    gap: 12,
+    width: '100%',
+  },
   button: {
     flex: 1,
     backgroundColor: '#3e3e3eff',
@@ -108,6 +114,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  buttonVertical: {
+    width: '100%',
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   singleButton: {
     flex: 1,
@@ -116,7 +134,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
   },
   cancelButton: {
-    backgroundColor: '#6b7280',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   buttonText: {
     color: '#ffffff',
@@ -127,6 +146,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   cancelButtonText: {
-    color: '#ffffff',
+    color: '#9ca3af',
   },
 });

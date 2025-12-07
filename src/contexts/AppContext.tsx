@@ -419,14 +419,101 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return JSON.stringify(backupData, null, 2);
   };
 
+  // Validate backup data structure
+  const validateBackupData = (data: any): { valid: boolean; message: string } => {
+    // Check if data is an object
+    if (!data || typeof data !== 'object') {
+      return { valid: false, message: 'Invalid backup file: Not a valid JSON object' };
+    }
+
+    // Check for required top-level fields
+    if (!data.version || typeof data.version !== 'string') {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid version field' };
+    }
+
+    if (!data.timestamp || typeof data.timestamp !== 'string') {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid timestamp field' };
+    }
+
+    // Check if arrays exist and are arrays
+    if (!Array.isArray(data.transactions)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid transactions array' };
+    }
+
+    if (!Array.isArray(data.categories)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid categories array' };
+    }
+
+    if (!Array.isArray(data.accounts)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid accounts array' };
+    }
+
+    // Check if currentCurrency exists and has required fields
+    if (!data.currentCurrency || typeof data.currentCurrency !== 'object') {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid currentCurrency object' };
+    }
+
+    if (!data.currentCurrency.code || !data.currentCurrency.symbol || !data.currentCurrency.name) {
+      return { valid: false, message: 'Invalid backup file: Invalid currency format' };
+    }
+
+    // Validate transaction structure (only if transactions exist)
+    if (data.transactions.length > 0) {
+      for (const transaction of data.transactions) {
+        if (!transaction.id || !transaction.type || !transaction.amount || !transaction.date || !transaction.category) {
+          return { valid: false, message: 'Invalid backup file: Transactions have invalid structure' };
+        }
+        if (transaction.type !== 'income' && transaction.type !== 'expense') {
+          return { valid: false, message: 'Invalid backup file: Invalid transaction type' };
+        }
+        if (typeof transaction.amount !== 'number' || isNaN(transaction.amount)) {
+          return { valid: false, message: 'Invalid backup file: Transaction amount must be a valid number' };
+        }
+      }
+    }
+
+    // Validate category structure (only if categories exist)
+    if (data.categories.length > 0) {
+      for (const category of data.categories) {
+        if (!category.id || !category.name || !category.type || !category.icon || !category.color) {
+          return { valid: false, message: 'Invalid backup file: Categories have invalid structure' };
+        }
+        if (category.type !== 'income' && category.type !== 'expense') {
+          return { valid: false, message: 'Invalid backup file: Invalid category type' };
+        }
+      }
+    }
+
+    // Validate account structure (only if accounts exist)
+    if (data.accounts.length > 0) {
+      for (const account of data.accounts) {
+        if (!account.id || !account.name || !account.type || !account.icon || !account.color) {
+          return { valid: false, message: 'Invalid backup file: Accounts have invalid structure' };
+        }
+        if (account.type !== 'bank' && account.type !== 'cash' && account.type !== 'credit' && account.type !== 'investment') {
+          return { valid: false, message: 'Invalid backup file: Invalid account type' };
+        }
+      }
+    }
+
+    return { valid: true, message: '' };
+  };
+
   // Import data from JSON string
   const importData = async (backupJson: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const backupData: BackupData = JSON.parse(backupJson);
-      
+      // First, try to parse JSON
+      let backupData: BackupData;
+      try {
+        backupData = JSON.parse(backupJson);
+      } catch (parseError) {
+        return { success: false, message: 'Invalid backup file: Not a valid JSON file. Please ensure you are importing a Wally backup file.' };
+      }
+
       // Validate backup data structure
-      if (!backupData.version || !backupData.transactions || !backupData.categories || !backupData.accounts) {
-        return { success: false, message: 'Invalid backup file format' };
+      const validation = validateBackupData(backupData);
+      if (!validation.valid) {
+        return { success: false, message: validation.message };
       }
 
       // Check version compatibility (for future migrations)

@@ -24,12 +24,10 @@ function AppContent() {
     const preloadAssets = async () => {
       try {
         // Preload wallet icon used in loading screen
-        const walletImage = require('./assets/wallet.png');
-        if (walletImage) {
-          // Give a small delay to ensure assets are cached
-          await new Promise(resolve => setTimeout(resolve, 500));
-          setAssetsReady(true);
-        }
+        require('./assets/wallet.png');
+        // Give a small delay to ensure assets are cached
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setAssetsReady(true);
       } catch (error) {
         // Asset preload failed, continue anyway
         setAssetsReady(true);

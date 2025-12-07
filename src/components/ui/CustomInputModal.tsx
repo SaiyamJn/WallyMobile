@@ -48,12 +48,13 @@ export function CustomInputModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.modalContainer}>
+        <View style={styles.modalContainer}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
             <View style={styles.modalContent}>
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.message}>{message}</Text>
@@ -66,10 +67,12 @@ export function CustomInputModal({
                 placeholderTextColor="#9ca3af"
                 keyboardType={keyboardType}
                 multiline={multiline}
-                numberOfLines={multiline ? 10 : 1}
+                numberOfLines={multiline ? 15 : 1}
                 textAlignVertical={multiline ? 'top' : 'center'}
-                autoFocus
-                selectTextOnFocus
+                autoFocus={!multiline}
+                selectTextOnFocus={!multiline}
+                scrollEnabled={multiline}
+                textBreakStrategy="simple"
               />
               
               <View style={styles.buttonContainer}>
@@ -88,8 +91,8 @@ export function CustomInputModal({
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -105,12 +108,12 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingVertical: 20,
   },
   modalContainer: {
     width: '100%',
     maxWidth: 400,
+    maxHeight: '90%',
     backgroundColor: '#202020ff',
     borderRadius: 20,
     shadowColor: '#000',
@@ -118,6 +121,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
+    overflow: 'hidden',
   },
   modalContent: {
     padding: 24,
@@ -130,11 +134,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#9ca3af',
     marginBottom: 20,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   input: {
     backgroundColor: '#3e3e3eff',
@@ -147,9 +151,12 @@ const styles = StyleSheet.create({
     borderColor: '#6b7280',
   },
   inputMultiline: {
-    minHeight: 200,
-    maxHeight: 400,
+    minHeight: 250,
+    maxHeight: 500,
     textAlignVertical: 'top',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 14,
+    lineHeight: 20,
   },
   buttonContainer: {
     flexDirection: 'row',

@@ -284,11 +284,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 60,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 20,
-    opacity: 0.5,
-  },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',

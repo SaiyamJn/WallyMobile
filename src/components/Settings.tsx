@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
@@ -11,6 +14,7 @@ export function Settings() {
   const { state, dispatch, currencies, exportData, importData } = useApp();
   const { alertState, hideAlert, showDeleteAlert, showSuccessAlert, showErrorAlert } = useCustomAlert();
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportOptions, setShowImportOptions] = useState(false);
 
   const handleCurrencyChange = (currency: typeof currencies[0]) => {
     dispatch({ type: 'SET_CURRENCY', payload: currency });
@@ -45,14 +49,40 @@ export function Settings() {
         URL.revokeObjectURL(url);
         showSuccessAlert('Backup exported successfully!');
       } else {
-        // For mobile, use Share API
-        const result = await Share.share({
-          message: backupJson,
-          title: fileName
+        // For mobile, save file to cache directory (more reliable for sharing on Android)
+        // Using cacheDirectory ensures better compatibility with Android's scoped storage
+        const fileUri = FileSystem.cacheDirectory + fileName;
+        
+        // Write the file to device storage
+        await FileSystem.writeAsStringAsync(fileUri, backupJson, {
+          encoding: FileSystem.EncodingType.UTF8,
         });
         
-        if (result.action === Share.sharedAction) {
-          showSuccessAlert('Backup shared successfully!');
+        // Check if sharing is available
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          // Share the file - this opens native share dialog where user can:
+          // - Save to Files (iOS/Android)
+          // - Save to Downloads (Android)
+          // - Share via other apps
+          // Note: expo-sharing works with cacheDirectory files on Android
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/json',
+            dialogTitle: 'Save Backup File',
+            UTI: 'public.json'
+          });
+          showSuccessAlert('Backup file ready to share!');
+        } else {
+          // Fallback to Share API if Sharing is not available
+          const result = await Share.share({
+            message: backupJson,
+            title: fileName
+          });
+          
+          if (result.action === Share.sharedAction) {
+            showSuccessAlert('Backup shared successfully!');
+          }
         }
       }
     } catch (error) {
@@ -67,6 +97,19 @@ export function Settings() {
       return;
     }
 
+    // Basic validation before sending to importData
+    try {
+      const parsed = JSON.parse(backupJson);
+      // Quick check for Wally backup structure
+      if (!parsed.version || !parsed.timestamp || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.categories) || !Array.isArray(parsed.accounts)) {
+        showErrorAlert('Invalid backup file: This does not appear to be a valid Wally backup file. Please ensure you are importing a file exported from Wally.');
+        return;
+      }
+    } catch (error) {
+      showErrorAlert('Invalid backup file: Not a valid JSON file. Please ensure you are importing a Wally backup file.');
+      return;
+    }
+
     const result = await importData(backupJson);
     if (result.success) {
       setShowImportModal(false);
@@ -74,6 +117,72 @@ export function Settings() {
     } else {
       showErrorAlert(result.message);
     }
+  };
+
+  const handlePickFile = async () => {
+    try {
+      // Check if we're on web
+      if (Platform.OS === 'web') {
+        showErrorAlert('File picker is not available on web. Please use the "Paste JSON" option.');
+        return;
+      }
+
+      // Pick a document file
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/json', '*.json'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const fileUri = result.assets[0].uri;
+        const fileName = result.assets[0].name || '';
+        
+        // Check file extension
+        if (!fileName.toLowerCase().endsWith('.json')) {
+          showErrorAlert('Invalid file type: Please select a JSON backup file exported from Wally.');
+          return;
+        }
+        
+        // Read the file content
+        const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        // Validate it's JSON and has Wally backup structure
+        try {
+          const parsed = JSON.parse(fileContent);
+          // Quick check for Wally backup structure
+          if (!parsed.version || !parsed.timestamp || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.categories) || !Array.isArray(parsed.accounts)) {
+            showErrorAlert('Invalid backup file: This does not appear to be a valid Wally backup file. Please ensure you are importing a file exported from Wally.');
+            return;
+          }
+        } catch (parseError) {
+          showErrorAlert('Invalid backup file: Not a valid JSON file. Please ensure you are importing a Wally backup file.');
+          return;
+        }
+
+        // Import the data (full validation happens in importData)
+        const importResult = await importData(fileContent);
+        if (importResult.success) {
+          showSuccessAlert(importResult.message);
+        } else {
+          showErrorAlert(importResult.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking file:', error);
+      showErrorAlert(`Failed to read backup file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleImportButtonPress = () => {
+    // Always show import options (file picker works on mobile, paste works everywhere)
+    setShowImportOptions(true);
   };
 
   return (
@@ -123,7 +232,7 @@ export function Settings() {
 
           <TouchableOpacity
             style={styles.dataButton}
-            onPress={() => setShowImportModal(true)}
+            onPress={handleImportButtonPress}
           >
             <Icon name="edit" size={ICON_SIZES.ACTION} />
             <View style={styles.dataInfo}>
@@ -233,6 +342,60 @@ export function Settings() {
         message={alertState.message}
         buttons={alertState.buttons}
         onClose={hideAlert}
+      />
+
+      {/* Import Options Alert */}
+      <CustomAlert
+        visible={showImportOptions}
+        title="Import Backup"
+        message={Platform.OS === 'web' 
+          ? "Paste your backup JSON data to restore." 
+          : "Choose how you want to import your backup:"}
+        buttons={Platform.OS === 'web' 
+          ? [
+              {
+                text: 'Open Paste Dialog',
+                onPress: () => {
+                  setShowImportOptions(false);
+                  setShowImportModal(true);
+                },
+                style: 'default'
+              },
+              {
+                text: 'Cancel',
+                onPress: () => {
+                  setShowImportOptions(false);
+                },
+                style: 'cancel'
+              }
+            ]
+          : [
+              {
+                text: 'Pick File from Device',
+                onPress: async () => {
+                  setShowImportOptions(false);
+                  await handlePickFile();
+                },
+                style: 'default'
+              },
+              {
+                text: 'Paste JSON',
+                onPress: () => {
+                  setShowImportOptions(false);
+                  setShowImportModal(true);
+                },
+                style: 'default'
+              },
+              {
+                text: 'Cancel',
+                onPress: () => {
+                  setShowImportOptions(false);
+                },
+                style: 'cancel'
+              }
+            ]}
+        onClose={() => setShowImportOptions(false)}
+        verticalButtons={true}
       />
 
       {/* Import Backup Modal */}

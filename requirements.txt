@@ -18,8 +18,10 @@ react-native-svg==15.12.1
 # Date Picker Dependencies
 @react-native-community/datetimepicker==^8.4.5
 
-# Icons & UI Components
-lucide-react-native==^0.544.0
+# File System & Sharing Dependencies
+expo-file-system==~19.0.20
+expo-sharing==~14.0.8
+expo-document-picker==~14.0.8
 
 # Development Dependencies
 @types/react==~19.1.0

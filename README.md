@@ -57,9 +57,11 @@ npm start
 ### 💾 **Data Management**
 - Local data storage with AsyncStorage
 - Data persistence across app sessions
-- Export/import capabilities
+- **Secure Export/Import**: Export backups with full validation
+- **Import Protection**: Only accepts valid Wally backup files (prevents random file uploads)
 - Complete data reset functionality
 - No internet connection required
+- File picker for easy backup restoration
 
 ## 🚀 **Getting Started**
 
@@ -82,10 +84,9 @@ npm start
    ```bash
    # Install all required packages
    npm install
-   
-   # Or install from requirements.txt (see Dependencies section)
-   npm install $(cat requirements.txt | grep -v '^#' | grep -v '^$' | tr '\n' ' ')
    ```
+   
+   **Note**: All dependencies are listed in `package.json` and `requirements.txt` for reference.
 
 3. **Start the development server**
    ```bash
@@ -114,12 +115,15 @@ All required dependencies are listed in `requirements.txt` and `package.json`:
 - **react-native-safe-area-context** - Safe area handling
 - **react-native-screens** - Native screen optimization
 - **react-native-svg** - SVG support
-- **lucide-react-native** - Icon library
 
 #### Data & Storage
 - **@react-native-async-storage/async-storage** - Local storage
 - **@react-native-community/datetimepicker** - Date picker
-- **react-datepicker** - Web date picker
+
+#### File System & Sharing
+- **expo-file-system** - File system operations
+- **expo-sharing** - Native file sharing
+- **expo-document-picker** - Document/file picker
 
 #### Development Tools
 - **@types/react** - TypeScript definitions
@@ -179,11 +183,12 @@ npx expo build:android
 - **Language**: TypeScript
 - **State Management**: React Context API + useReducer
 - **Storage**: AsyncStorage
-- **Styling**: StyleSheet + Custom Components
-- **Icons**: Custom PNG assets with emoji fallbacks
+- **Styling**: StyleSheet + Custom Components (no external UI frameworks)
+- **Icons**: Custom PNG assets with emoji fallbacks for web compatibility
 - **Animations**: React Native transform properties
 - **Build Tool**: EAS CLI
 - **Package Manager**: npm
+- **File Handling**: Expo File System API with validation
 
 ## 📁 **Project Structure**
 
@@ -237,17 +242,36 @@ Wally/
 - Category-wise breakdowns
 
 ### **Settings**
-- Currency selection
-- Data management
-- App information
+- Currency selection (multiple currencies supported)
+- **Secure Data Export**: Export backups with full data validation
+- **Secure Data Import**: Import only valid Wally backup files with comprehensive validation
+- App information and statistics
 - Clear all data option
+- Category management
+
+## 🔒 **Data Security & Validation**
+
+### **Import/Export Security**
+The app includes comprehensive validation to ensure data integrity:
+
+- **Export Validation**: All exported backups are validated before creation
+- **Import Validation**: Only accepts valid Wally backup files with:
+  - Proper JSON structure validation
+  - Required field verification (version, timestamp, transactions, categories, accounts, currency)
+  - Data type validation for all fields
+  - Transaction, category, and account structure validation
+  - File extension checking (.json only)
+- **Error Prevention**: Rejects random files, invalid JSON, or corrupted data
+- **User-Friendly Errors**: Clear error messages guide users to use valid backup files
+
+**Important**: Always use backup files exported from Wally. Random JSON files or files from other sources will be rejected.
 
 ## 🔧 **Configuration**
 
 ### **App Configuration** (`app.json`)
 - App name: Wally
 - Package: com.saiyamjn.Wally
-- Version: 1.0.0
+- Version: 4.0.0
 - Orientation: Portrait
 - Theme: Dark
 
@@ -296,6 +320,16 @@ If you have any questions or need help, please:
 - Review the code comments
 
 ## ✨ **Recent Updates**
+
+### **v4.0.0 - Security & Code Quality Improvements**
+- ✅ **Import Validation**: Added comprehensive validation to ensure only valid Wally backup files are accepted
+- ✅ **File Security**: Prevents random file uploads and invalid JSON imports
+- ✅ **Code Cleanup**: Removed unused dependencies (lucide-react-native, Tailwind CSS)
+- ✅ **Removed Dead Code**: Cleaned up unused hooks, imports, and files
+- ✅ **Improved Error Messages**: Clear, user-friendly error messages for import/export operations
+- ✅ **Vertical Import Buttons**: Improved import dialog UI with vertical button layout
+- ✅ **Minimal Design**: Updated import dialog to match app's minimal color scheme
+- ✅ **Web Icon Support**: Fixed icon display on Expo Go web (uses emoji fallbacks)
 
 ### **v2.1.1 - Icon System & UI Improvements**
 - ✅ **Custom Icon System**: Replaced emoji icons with professional PNG assets
