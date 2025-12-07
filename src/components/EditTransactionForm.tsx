@@ -57,15 +57,23 @@ export function EditTransactionForm() {
         date: transaction.date.split('T')[0], // Extract date-only portion from ISO datetime string
         accountId: transaction.accountId || ''
       });
-      setSelectedDate(new Date(transaction.date));
-      setCalendarViewDate(new Date(transaction.date));
+      // Parse date as local midnight to avoid timezone issues
+      const [year, month, day] = (transaction.date.split('T')[0]).split('-').map(Number);
+      setSelectedDate(new Date(year, month - 1, day));
+      setCalendarViewDate(new Date(year, month - 1, day));
     }
   }, [transaction]);
 
+  // Parse date string as local midnight to avoid timezone issues
+  const parseLocalDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  };
+
   // Sync selectedDate with formData.date changes
   useEffect(() => {
-    setSelectedDate(new Date(formData.date));
-    setCalendarViewDate(new Date(formData.date));
+    setSelectedDate(parseLocalDate(formData.date));
+    setCalendarViewDate(parseLocalDate(formData.date));
   }, [formData.date]);
 
   const categories = state.categories.filter(c => c.type === formData.type);
@@ -197,7 +205,9 @@ export function EditTransactionForm() {
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse date string as local midnight to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

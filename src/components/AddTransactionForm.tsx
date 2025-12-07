@@ -23,8 +23,14 @@ export function AddTransactionForm() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date(formData.date));
-  const [calendarViewDate, setCalendarViewDate] = useState(new Date(formData.date));
+  // Parse date string as local midnight to avoid timezone issues
+  const parseLocalDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  };
+  
+  const [selectedDate, setSelectedDate] = useState(parseLocalDate(formData.date));
+  const [calendarViewDate, setCalendarViewDate] = useState(parseLocalDate(formData.date));
   const [newCategory, setNewCategory] = useState({
     name: '',
     icon: 'card' as string,
@@ -62,8 +68,8 @@ export function AddTransactionForm() {
 
   // Sync selectedDate with formData.date
   useEffect(() => {
-    setSelectedDate(new Date(formData.date));
-    setCalendarViewDate(new Date(formData.date));
+    setSelectedDate(parseLocalDate(formData.date));
+    setCalendarViewDate(parseLocalDate(formData.date));
   }, [formData.date]);
 
   const handleCreateAccount = () => {
@@ -203,7 +209,9 @@ export function AddTransactionForm() {
   };
 
   const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse date string as local midnight to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
