@@ -57,18 +57,17 @@ export function Dashboard() {
     const account = state.accounts.find(a => a.id === selectedAccountId);
     if (account) {
       // Calculate account balance at start of selected month
+      // Convert directly to current currency (matching Accounts.tsx pattern)
       const accountBalanceAtStart = state.transactions
         .filter(t => {
           return t.accountId === selectedAccountId && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
         })
         .reduce((sum, t) => {
-          const convertedAmount = convertAmount(t.amount, t.currency, account.currency);
+          const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
           return sum + (t.type === 'income' ? convertedAmount : -convertedAmount);
         }, 0);
       
-      // Convert to current currency
-      const accountBalanceConverted = convertAmount(accountBalanceAtStart, account.currency, currentCurrency.code);
-      balance = accountBalanceConverted + totalIncome - totalExpense;
+      balance = accountBalanceAtStart + totalIncome - totalExpense;
     } else {
       balance = carryForwardBalance + totalIncome - totalExpense;
     }
