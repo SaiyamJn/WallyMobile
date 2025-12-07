@@ -22,9 +22,9 @@ export function CategoryTransactions({
   
   let categoryTransactions = state.transactions.filter(t => {
     if (isAccountName) {
-      // If it's an account name, filter by accountId
+      // If it's an account name, filter by accountId (show both income and expense transactions)
       const account = state.accounts.find(acc => acc.name === categoryName);
-      return account && t.accountId === account.id && t.type === 'income';
+      return account && t.accountId === account.id;
     } else {
       // If it's a category name, filter by category
       return t.category === categoryName;

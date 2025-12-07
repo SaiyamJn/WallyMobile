@@ -9,7 +9,7 @@ import { ICON_SIZES } from '../constants/iconSizes';
 import { categoryIconOptions } from '../utils/iconUtils';
 
 export function AddTransactionForm() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, convertAmount, formatCurrency } = useApp();
   const { alertState, hideAlert, showErrorAlert, showConfirmAlert } = useCustomAlert();
   const [formData, setFormData] = useState({
     amount: '',
@@ -36,6 +36,17 @@ export function AddTransactionForm() {
   const descriptionInputRef = useRef<TextInput>(null);
 
   const categories = state.categories.filter(c => c.type === formData.type);
+
+  // Calculate account balance from transactions (consistent with Accounts component)
+  const getAccountBalanceFromTransactions = (accountId: string) => {
+    const accountTransactions = state.transactions.filter(t => t.accountId === accountId);
+    const currentCurrency = state.currentCurrency;
+    
+    return accountTransactions.reduce((sum, transaction) => {
+      const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
+      return transaction.type === 'income' ? sum + convertedAmount : sum - convertedAmount;
+    }, 0);
+  };
 
   // Check if accounts exist when component loads
   useEffect(() => {
@@ -480,7 +491,7 @@ export function AddTransactionForm() {
                       {account.name}
                     </Text>
                     <Text style={styles.modalItemSubtext}>
-                      {state.currentCurrency.symbol}{account.balance.toFixed(2)}
+                      {formatCurrency(getAccountBalanceFromTransactions(account.id))}
                     </Text>
                   </View>
                 </TouchableOpacity>

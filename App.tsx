@@ -26,7 +26,7 @@ function AppContent() {
         // Preload wallet icon used in loading screen
         require('./assets/wallet.png');
         // Give a small delay to ensure assets are cached
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         setAssetsReady(true);
       } catch (error) {
         // Asset preload failed, continue anyway
@@ -42,7 +42,7 @@ function AppContent() {
     if (assetsReady) {
       const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 1500); // Reduced from 2000 to 1500 since we're preloading
+      }, 800); // Reduced delay for faster app startup
 
       return () => clearTimeout(timer);
     }

@@ -15,6 +15,17 @@ export function EditTransactionForm() {
   // Find the transaction being edited
   const transaction = state.transactions.find(t => t.id === state.selectedTransactionId);
   
+  // Calculate account balance from transactions (consistent with Accounts component)
+  const getAccountBalanceFromTransactions = (accountId: string) => {
+    const accountTransactions = state.transactions.filter(t => t.accountId === accountId);
+    const currentCurrency = state.currentCurrency;
+    
+    return accountTransactions.reduce((sum, transaction) => {
+      const convertedAmount = convertAmount(transaction.amount, transaction.currency, currentCurrency.code);
+      return transaction.type === 'income' ? sum + convertedAmount : sum - convertedAmount;
+    }, 0);
+  };
+  
   const [formData, setFormData] = useState({
     amount: '',
     type: 'expense' as 'income' | 'expense',
@@ -471,7 +482,7 @@ export function EditTransactionForm() {
                       {account.name}
                     </Text>
                     <Text style={styles.modalItemSubtext}>
-                      {state.currentCurrency.symbol}{account.balance.toFixed(2)}
+                      {formatCurrency(getAccountBalanceFromTransactions(account.id))}
                     </Text>
                   </View>
                 </TouchableOpacity>

@@ -240,6 +240,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
         selectedTransactionId: action.payload
       };
     case 'SET_SCREEN_WITH_TRANSACTION':
+      // Don't add to history if it's the same screen
+      if (state.currentScreen === action.payload.screen) {
+        return {
+          ...state,
+          selectedTransactionId: action.payload.transactionId
+        };
+      }
       return {
         ...state,
         currentScreen: action.payload.screen,
@@ -247,6 +254,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
         navigationHistory: [...state.navigationHistory, action.payload.screen]
       };
     case 'SET_SCREEN_WITH_CATEGORY':
+      // Don't add to history if it's the same screen
+      if (state.currentScreen === action.payload.screen) {
+        return {
+          ...state,
+          selectedCategory: action.payload.categoryName,
+          categoryTransactions: action.payload.transactions
+        };
+      }
       return {
         ...state,
         currentScreen: action.payload.screen,
