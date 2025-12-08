@@ -72,14 +72,32 @@ export function Settings() {
         let fileUri: string | null = null;
         let directory: string | null = null;
 
-        // Try documentDirectory first (more reliable on Android)
-        if (FileSystem.documentDirectory) {
-          directory = FileSystem.documentDirectory;
-        } else if (FileSystem.cacheDirectory) {
-          directory = FileSystem.cacheDirectory;
-        } else {
-          showErrorAlert('File system not available. Please check app permissions.');
-          return;
+        // Try cacheDirectory first (always available, app-specific, no permissions needed)
+        // cacheDirectory should always be available in Expo apps
+        directory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+        
+        if (!directory) {
+          // If file system is truly unavailable, fall back to sharing JSON directly
+          console.warn('File system directories not available, falling back to direct share');
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            try {
+              // Share as text/JSON directly
+              await Share.share({
+                message: backupJson,
+                title: fileName,
+              });
+              showSuccessAlert('Backup shared! You can save it from the share menu.');
+              return;
+            } catch (shareError) {
+              console.error('Share error:', shareError);
+              showErrorAlert('File system not available and sharing failed. Please restart the app and try again.');
+              return;
+            }
+          } else {
+            showErrorAlert('File system not available. Please restart the app and try again.');
+            return;
+          }
         }
 
         // Ensure proper path construction
@@ -88,34 +106,94 @@ export function Settings() {
           : `${directory}/`;
         fileUri = `${dir}${fileName}`;
         
-        // Write the file to device storage
-        await FileSystem.writeAsStringAsync(fileUri, backupJson, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        
-        // Verify file was written
-        const fileInfo = await FileSystem.getInfoAsync(fileUri);
-        if (!fileInfo.exists) {
-          showErrorAlert('Failed to create backup file. Please check storage permissions.');
-          return;
-        }
-        
-        // Use expo-sharing to save to Downloads (on Android, this allows saving to Downloads)
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
+        try {
+          // Ensure directory exists (cacheDirectory should always exist, but be safe)
           try {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/json',
-              dialogTitle: 'Save Backup to Downloads',
-              UTI: 'public.json'
-            });
-            showSuccessAlert('Backup saved! Check your Downloads folder.');
-          } catch (shareError) {
-            console.error('Sharing error:', shareError);
-            showErrorAlert(`Failed to save backup: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
+            const dirInfo = await FileSystem.getInfoAsync(directory);
+            if (!dirInfo.exists) {
+              await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+            }
+          } catch (dirError) {
+            // Directory might already exist or be inaccessible, continue anyway
+            console.log('Directory check:', dirError);
           }
-        } else {
-          showErrorAlert('Sharing not available on this device.');
+          
+          // Write the file to device storage
+          await FileSystem.writeAsStringAsync(fileUri, backupJson, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          
+          // Verify file was written
+          const fileInfo = await FileSystem.getInfoAsync(fileUri);
+          if (!fileInfo.exists) {
+            // Fallback to direct share if file write failed
+            console.warn('File write verification failed, falling back to direct share');
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (isAvailable) {
+              await Share.share({
+                message: backupJson,
+                title: fileName,
+              });
+              showSuccessAlert('Backup shared! You can save it from the share menu.');
+              return;
+            }
+            showErrorAlert('Failed to create backup file. Please check storage permissions.');
+            return;
+          }
+          
+          // Use expo-sharing to save to Downloads (on Android, this allows saving to Downloads)
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            try {
+              await Sharing.shareAsync(fileUri, {
+                mimeType: 'application/json',
+                dialogTitle: 'Save Backup to Downloads',
+                UTI: 'public.json'
+              });
+              showSuccessAlert('Backup saved! Check your Downloads folder.');
+            } catch (shareError) {
+              console.error('Sharing error:', shareError);
+              // If sharing fails, try direct share as fallback
+              try {
+                await Share.share({
+                  message: backupJson,
+                  title: fileName,
+                });
+                showSuccessAlert('Backup shared! You can save it from the share menu.');
+              } catch (fallbackError) {
+                showErrorAlert(`Failed to save backup: ${shareError instanceof Error ? shareError.message : 'Unknown error'}`);
+              }
+            }
+          } else {
+            // Fallback to React Native Share
+            try {
+              await Share.share({
+                message: backupJson,
+                title: fileName,
+              });
+              showSuccessAlert('Backup shared! You can save it from the share menu.');
+            } catch (shareError) {
+              showErrorAlert('Sharing not available on this device.');
+            }
+          }
+        } catch (writeError) {
+          console.error('File write error:', writeError);
+          // Fallback to direct share if file system operations fail
+          try {
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (isAvailable) {
+              await Share.share({
+                message: backupJson,
+                title: fileName,
+              });
+              showSuccessAlert('Backup shared! You can save it from the share menu.');
+              return;
+            }
+          } catch (shareError) {
+            console.error('Fallback share error:', shareError);
+          }
+          const errorMessage = writeError instanceof Error ? writeError.message : 'Unknown error';
+          showErrorAlert(`Failed to write backup file: ${errorMessage}. Please try sharing instead.`);
         }
       }
     } catch (error) {
