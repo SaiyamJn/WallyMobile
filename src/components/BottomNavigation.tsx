@@ -9,6 +9,7 @@ const navigationItems = [
   { screen: 'dashboard' as Screen, icon: 'dashboard' },
   { screen: 'transactions' as Screen, icon: 'transactions' },
   { screen: 'accounts' as Screen, icon: 'accounts' },
+  { screen: 'divido' as Screen, icon: 'card' },
   { screen: 'reports' as Screen, icon: 'reports' },
   { screen: 'settings' as Screen, icon: 'settings' },
 ];

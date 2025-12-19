@@ -4,9 +4,11 @@ import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDate, getMonthYearString, isTransactionInMonth, isTransactionBeforeMonth } from '../utils/transactionUtils';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
+import { SideMenu } from './SideMenu';
 
 export function Dashboard() {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
+  const [showSideMenu, setShowSideMenu] = useState(false);
   
   // Month selector state - default to current month
   const currentDate = new Date();
@@ -131,13 +133,26 @@ export function Dashboard() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Image 
-            source={require('../../assets/wallet.png')} 
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setShowSideMenu(true)}
+          >
+            <Text style={styles.menuIcon}>☰</Text>
+          </TouchableOpacity>
+          <Image
+            source={require('../../assets/wallet.png')}
             style={styles.logo}
             resizeMode="contain"
           />
           <Text style={styles.appName}>Wally</Text>
+          <View style={styles.headerSpacer} />
         </View>
+
+        {/* Side Menu */}
+        <SideMenu 
+          visible={showSideMenu}
+          onClose={() => setShowSideMenu(false)}
+        />
 
         {/* Month Selector */}
         <View style={styles.monthSelectorContainer}>
@@ -295,9 +310,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
     gap: 16,
+  },
+  menuButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuIcon: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  headerSpacer: {
+    width: 40,
   },
   logo: {
     width: 48,

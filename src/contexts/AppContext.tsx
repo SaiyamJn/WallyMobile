@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
-import { Transaction, Category, Currency, Screen, Account } from '../types';
+import { Transaction, Category, Currency, Screen, Account, Person, ExpenseGroup, Expense, Settlement } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { defaultCategoryIcons } from '../utils/iconUtils';
 
@@ -14,6 +14,14 @@ interface AppState {
   selectedTransactionId: string | null;
   selectedCategory: string | null;
   categoryTransactions: Transaction[];
+  // Divido state
+  people: Person[];
+  expenseGroups: ExpenseGroup[];
+  expenses: Expense[];
+  settlements: Settlement[];
+  selectedExpenseGroupId: string | null;
+  selectedExpenseId: string | null;
+  selectedPersonId: string | null;
 }
 
 type AppAction =
@@ -35,7 +43,22 @@ type AppAction =
   | { type: 'SET_SELECTED_CATEGORY'; payload: string | null }
   | { type: 'GO_BACK' }
   | { type: 'LOAD_DATA'; payload: Partial<AppState> }
-  | { type: 'CLEAR_ALL_DATA' };
+  | { type: 'CLEAR_ALL_DATA' }
+  // Divido actions
+  | { type: 'ADD_PERSON'; payload: Person }
+  | { type: 'UPDATE_PERSON'; payload: Person }
+  | { type: 'DELETE_PERSON'; payload: string }
+  | { type: 'ADD_EXPENSE_GROUP'; payload: ExpenseGroup }
+  | { type: 'UPDATE_EXPENSE_GROUP'; payload: ExpenseGroup }
+  | { type: 'DELETE_EXPENSE_GROUP'; payload: string }
+  | { type: 'ADD_EXPENSE'; payload: Expense }
+  | { type: 'UPDATE_EXPENSE'; payload: Expense }
+  | { type: 'DELETE_EXPENSE'; payload: string }
+  | { type: 'ADD_SETTLEMENT'; payload: Settlement }
+  | { type: 'UPDATE_SETTLEMENT'; payload: Settlement }
+  | { type: 'SET_SELECTED_EXPENSE_GROUP'; payload: string | null }
+  | { type: 'SET_SELECTED_EXPENSE'; payload: string | null }
+  | { type: 'SET_SELECTED_PERSON'; payload: string | null };
 
 const currencies: Currency[] = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 83 },
@@ -83,7 +106,12 @@ const STORAGE_KEYS = {
   CURRENCY: 'wally_currency',
   SCREEN: 'wally_screen',
   NAVIGATION: 'wally_navigation',
-  DATA_VERSION: 'wally_data_version'
+  DATA_VERSION: 'wally_data_version',
+  // Divido storage
+  PEOPLE: 'wally_people',
+  EXPENSE_GROUPS: 'wally_expense_groups',
+  EXPENSES: 'wally_expenses',
+  SETTLEMENTS: 'wally_settlements'
 };
 
 // Data version for migration support
@@ -116,7 +144,11 @@ const clearAllStorage = async () => {
       STORAGE_KEYS.ACCOUNTS,
       STORAGE_KEYS.CURRENCY,
       STORAGE_KEYS.SCREEN,
-      STORAGE_KEYS.NAVIGATION
+      STORAGE_KEYS.NAVIGATION,
+      STORAGE_KEYS.PEOPLE,
+      STORAGE_KEYS.EXPENSE_GROUPS,
+      STORAGE_KEYS.EXPENSES,
+      STORAGE_KEYS.SETTLEMENTS
     ]);
   } catch (error) {
     console.error('Error clearing storage:', error);
@@ -133,7 +165,15 @@ const initialState: AppState = {
   selectedAccountId: null,
   selectedTransactionId: null,
   selectedCategory: null,
-  categoryTransactions: []
+  categoryTransactions: [],
+  // Divido initial state
+  people: [],
+  expenseGroups: [],
+  expenses: [],
+  settlements: [],
+  selectedExpenseGroupId: null,
+  selectedExpenseId: null,
+  selectedPersonId: null
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -298,6 +338,98 @@ function appReducer(state: AppState, action: AppAction): AppState {
         selectedCategory: null,
         categoryTransactions: []
       };
+    // Divido actions
+    case 'ADD_PERSON':
+      return {
+        ...state,
+        people: [...state.people, action.payload]
+      };
+    case 'UPDATE_PERSON':
+      return {
+        ...state,
+        people: state.people.map(p => 
+          p.id === action.payload.id ? action.payload : p
+        )
+      };
+    case 'DELETE_PERSON':
+      // Also remove person from all expense groups and delete related expenses
+      const updatedGroups = state.expenseGroups.map(group => ({
+        ...group,
+        members: group.members.filter(memberId => memberId !== action.payload)
+      })).filter(group => group.members.length > 0); // Remove groups with no members
+      
+      return {
+        ...state,
+        people: state.people.filter(p => p.id !== action.payload),
+        expenseGroups: updatedGroups,
+        expenses: state.expenses.filter(e => {
+          const group = state.expenseGroups.find(g => g.id === e.groupId);
+          return group && group.members.includes(action.payload);
+        })
+      };
+    case 'ADD_EXPENSE_GROUP':
+      return {
+        ...state,
+        expenseGroups: [...state.expenseGroups, action.payload]
+      };
+    case 'UPDATE_EXPENSE_GROUP':
+      return {
+        ...state,
+        expenseGroups: state.expenseGroups.map(g => 
+          g.id === action.payload.id ? action.payload : g
+        )
+      };
+    case 'DELETE_EXPENSE_GROUP':
+      return {
+        ...state,
+        expenseGroups: state.expenseGroups.filter(g => g.id !== action.payload),
+        expenses: state.expenses.filter(e => e.groupId !== action.payload),
+        settlements: state.settlements.filter(s => s.groupId !== action.payload)
+      };
+    case 'ADD_EXPENSE':
+      return {
+        ...state,
+        expenses: [...state.expenses, action.payload]
+      };
+    case 'UPDATE_EXPENSE':
+      return {
+        ...state,
+        expenses: state.expenses.map(e => 
+          e.id === action.payload.id ? action.payload : e
+        )
+      };
+    case 'DELETE_EXPENSE':
+      return {
+        ...state,
+        expenses: state.expenses.filter(e => e.id !== action.payload)
+      };
+    case 'ADD_SETTLEMENT':
+      return {
+        ...state,
+        settlements: [...state.settlements, action.payload]
+      };
+    case 'UPDATE_SETTLEMENT':
+      return {
+        ...state,
+        settlements: state.settlements.map(s => 
+          s.id === action.payload.id ? action.payload : s
+        )
+      };
+    case 'SET_SELECTED_EXPENSE_GROUP':
+      return {
+        ...state,
+        selectedExpenseGroupId: action.payload
+      };
+    case 'SET_SELECTED_EXPENSE':
+      return {
+        ...state,
+        selectedExpenseId: action.payload
+      };
+    case 'SET_SELECTED_PERSON':
+      return {
+        ...state,
+        selectedPersonId: action.payload
+      };
     default:
       return state;
   }
@@ -311,6 +443,11 @@ export interface BackupData {
   categories: Category[];
   accounts: Account[];
   currentCurrency: Currency;
+  // Divido data
+  people: Person[];
+  expenseGroups: ExpenseGroup[];
+  expenses: Expense[];
+  settlements: Settlement[];
 }
 
 const AppContext = createContext<{
@@ -336,12 +473,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         if (hasExistingData) {
           // Load existing data from storage
-          const [transactions, categories, accounts, currency, dataVersion] = await Promise.all([
+          const [transactions, categories, accounts, currency, dataVersion, people, expenseGroups, expenses, settlements] = await Promise.all([
             loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []),
             loadFromStorage(STORAGE_KEYS.CATEGORIES, defaultCategories),
             loadFromStorage(STORAGE_KEYS.ACCOUNTS, []),
             loadFromStorage(STORAGE_KEYS.CURRENCY, initialState.currentCurrency),
-            loadFromStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION)
+            loadFromStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION),
+            loadFromStorage(STORAGE_KEYS.PEOPLE, []),
+            loadFromStorage(STORAGE_KEYS.EXPENSE_GROUPS, []),
+            loadFromStorage(STORAGE_KEYS.EXPENSES, []),
+            loadFromStorage(STORAGE_KEYS.SETTLEMENTS, [])
           ]);
 
           // Future: Add migration logic here if dataVersion !== CURRENT_DATA_VERSION
@@ -354,12 +495,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const validCategories = Array.isArray(categories) && categories.length > 0 ? categories : defaultCategories;
           const validAccounts = Array.isArray(accounts) ? accounts : [];
           const validCurrency = currency && typeof currency === 'object' && currency.code ? currency : initialState.currentCurrency;
+          const validPeople = Array.isArray(people) ? people : [];
+          const validExpenseGroups = Array.isArray(expenseGroups) ? expenseGroups : [];
+          const validExpenses = Array.isArray(expenses) ? expenses : [];
+          const validSettlements = Array.isArray(settlements) ? settlements : [];
 
           dispatch({ type: 'LOAD_DATA', payload: {
             transactions: validTransactions,
             categories: validCategories,
             accounts: validAccounts,
             currentCurrency: validCurrency,
+            people: validPeople,
+            expenseGroups: validExpenseGroups,
+            expenses: validExpenses,
+            settlements: validSettlements,
             currentScreen: 'dashboard',
             navigationHistory: ['dashboard']
           }});
@@ -370,6 +519,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             categories: defaultCategories,
             accounts: [],
             currentCurrency: initialState.currentCurrency,
+            people: [],
+            expenseGroups: [],
+            expenses: [],
+            settlements: [],
             currentScreen: 'dashboard',
             navigationHistory: ['dashboard']
           }});
@@ -384,6 +537,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           categories: defaultCategories,
           accounts: [],
           currentCurrency: initialState.currentCurrency,
+          people: [],
+          expenseGroups: [],
+          expenses: [],
+          settlements: [],
           currentScreen: 'dashboard',
           navigationHistory: ['dashboard']
         }});
@@ -403,7 +560,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           saveToStorage(STORAGE_KEYS.CATEGORIES, state.categories),
           saveToStorage(STORAGE_KEYS.ACCOUNTS, state.accounts),
           saveToStorage(STORAGE_KEYS.CURRENCY, state.currentCurrency),
-          saveToStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION)
+          saveToStorage(STORAGE_KEYS.DATA_VERSION, CURRENT_DATA_VERSION),
+          saveToStorage(STORAGE_KEYS.PEOPLE, state.people),
+          saveToStorage(STORAGE_KEYS.EXPENSE_GROUPS, state.expenseGroups),
+          saveToStorage(STORAGE_KEYS.EXPENSES, state.expenses),
+          saveToStorage(STORAGE_KEYS.SETTLEMENTS, state.settlements)
           // Don't save screen and navigation - always start on dashboard
         ]);
       };
@@ -419,7 +580,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       transactions: state.transactions,
       categories: state.categories,
       accounts: state.accounts,
-      currentCurrency: state.currentCurrency
+      currentCurrency: state.currentCurrency,
+      people: state.people,
+      expenseGroups: state.expenseGroups,
+      expenses: state.expenses,
+      settlements: state.settlements
     };
     return JSON.stringify(backupData, null, 2);
   };
@@ -533,6 +698,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         categories: backupData.categories || defaultCategories,
         accounts: backupData.accounts || [],
         currentCurrency: backupData.currentCurrency || initialState.currentCurrency,
+        people: backupData.people || [],
+        expenseGroups: backupData.expenseGroups || [],
+        expenses: backupData.expenses || [],
+        settlements: backupData.settlements || [],
         currentScreen: 'dashboard',
         navigationHistory: ['dashboard']
       }});
@@ -543,7 +712,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveToStorage(STORAGE_KEYS.CATEGORIES, backupData.categories || defaultCategories),
         saveToStorage(STORAGE_KEYS.ACCOUNTS, backupData.accounts || []),
         saveToStorage(STORAGE_KEYS.CURRENCY, backupData.currentCurrency || initialState.currentCurrency),
-        saveToStorage(STORAGE_KEYS.DATA_VERSION, backupData.version || CURRENT_DATA_VERSION)
+        saveToStorage(STORAGE_KEYS.DATA_VERSION, backupData.version || CURRENT_DATA_VERSION),
+        saveToStorage(STORAGE_KEYS.PEOPLE, backupData.people || []),
+        saveToStorage(STORAGE_KEYS.EXPENSE_GROUPS, backupData.expenseGroups || []),
+        saveToStorage(STORAGE_KEYS.EXPENSES, backupData.expenses || []),
+        saveToStorage(STORAGE_KEYS.SETTLEMENTS, backupData.settlements || [])
       ]);
 
       return { success: true, message: 'Data imported successfully' };
@@ -587,7 +760,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             maximumFractionDigits: 2 
           })}`;
         },
-        exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency }),
+        exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency, people: [], expenseGroups: [], expenses: [], settlements: [] }),
         importData: async () => ({ success: false, message: 'App is still loading' })
       }}>
         {children}

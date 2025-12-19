@@ -13,6 +13,12 @@ import { Settings } from './src/components/Settings';
 import { Accounts } from './src/components/Accounts';
 import { BottomNavigation } from './src/components/BottomNavigation';
 import { CategoryTransactions } from './src/components/CategoryTransactions';
+import { Divido } from './src/components/Divido';
+import { ExpenseGroupDetail } from './src/components/ExpenseGroupDetail';
+import { ExpenseGroupForm } from './src/components/ExpenseGroupForm';
+import { PeopleList } from './src/components/PeopleList';
+import { PersonForm } from './src/components/PersonForm';
+import { ExpenseForm } from './src/components/ExpenseForm';
 
 function AppContent() {
   const { state, dispatch } = useApp();
@@ -96,6 +102,22 @@ function AppContent() {
           categoryName={state.selectedCategory || ''}
           onBack={() => dispatch({ type: 'GO_BACK' })}
         />;
+      // Divido screens
+      case 'divido':
+        return <Divido />;
+      case 'expense-group-detail':
+        return <ExpenseGroupDetail />;
+      case 'add-expense-group':
+      case 'edit-expense-group':
+        return <ExpenseGroupForm />;
+      case 'people-list':
+        return <PeopleList />;
+      case 'add-person':
+      case 'edit-person':
+        return <PersonForm />;
+      case 'add-expense':
+      case 'edit-expense':
+        return <ExpenseForm />;
       default:
         return <Dashboard />;
     }
@@ -133,7 +155,9 @@ function AppContent() {
               {renderCurrentScreen()}
             </View>
           </KeyboardAvoidingView>
-          <BottomNavigation />
+          {!['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense'].includes(state.currentScreen) && (
+            <BottomNavigation />
+          )}
         </View>
       )}
     </SafeAreaProvider>
