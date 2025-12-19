@@ -271,7 +271,7 @@ The app includes comprehensive validation to ensure data integrity:
 ### **App Configuration** (`app.json`)
 - App name: Wally
 - Package: com.saiyamjn.Wally
-- Version: 4.1.1
+- Version: 4.1.2
 - Orientation: Portrait
 - Theme: Dark
 
@@ -320,6 +320,8 @@ If you have any questions or need help, please:
 - Review the code comments
 
 ## ✨ **Recent Updates**
+
+### **v4.1.2 - Account Selection in Reports**
 
 ### **v4.1.1 - Security & Code Quality Improvements**
 - ✅ **Import Validation**: Added comprehensive validation to ensure only valid Wally backup files are accepted
