@@ -196,7 +196,7 @@ export function Dashboard() {
         </View>
 
         {/* Account Filter */}
-        {state.accounts.length > 0 && (
+        {state.accounts.length > 1 && (
           <View style={styles.accountFilterContainer}>
             <View style={styles.accountFilterPillWrapper}>
               <ScrollView 

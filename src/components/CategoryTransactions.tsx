@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDateHeader, formatTime } from '../utils/transactionUtils';
@@ -15,20 +15,28 @@ export function CategoryTransactions({
   onBack
 }: CategoryTransactionsProps) {
   const { state, convertAmount, formatCurrency, dispatch } = useApp();
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   // Get ALL transactions for this category (not just current month)
   // Check if categoryName is actually an account name by looking for it in accounts
   const isAccountName = state.accounts.some(account => account.name === categoryName);
   
   let categoryTransactions = state.transactions.filter(t => {
+    // First filter by category/account name
+    let matchesCategory = false;
     if (isAccountName) {
       // If it's an account name, filter by accountId (show both income and expense transactions)
       const account = state.accounts.find(acc => acc.name === categoryName);
-      return account && t.accountId === account.id;
+      matchesCategory = account && t.accountId === account.id;
     } else {
       // If it's a category name, filter by category
-      return t.category === categoryName;
+      matchesCategory = t.category === categoryName;
     }
+    
+    // Then filter by selected account if one is selected
+    const matchesAccount = !selectedAccountId || t.accountId === selectedAccountId;
+    
+    return matchesCategory && matchesAccount;
   });
 
   // Sort transactions with newest first (same as TransactionsList)
@@ -94,6 +102,44 @@ export function CategoryTransactions({
           </Text>
         </View>
       </View>
+
+      {/* Account Filter */}
+      {state.accounts.length > 1 && !isAccountName && (
+        <View style={styles.accountFilterContainer}>
+          <View style={styles.accountFilterPillWrapper}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={state.accounts.length > 2}
+              style={styles.accountFilterScroll}
+              contentContainerStyle={styles.accountFilterContent}
+              bounces={false}
+            >
+              <TouchableOpacity
+                style={[styles.accountFilterButton, !selectedAccountId && styles.accountFilterButtonActive]}
+                onPress={() => setSelectedAccountId(null)}
+              >
+                <Text style={[styles.accountFilterText, !selectedAccountId && styles.accountFilterTextActive]}>
+                  All
+                </Text>
+              </TouchableOpacity>
+              {state.accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[styles.accountFilterButton, selectedAccountId === account.id && styles.accountFilterButtonActive]}
+                  onPress={() => setSelectedAccountId(account.id)}
+                >
+                  <View style={styles.accountIconContainer}>
+                    <Icon name={account.icon} size={16} />
+                  </View>
+                  <Text style={[styles.accountFilterText, selectedAccountId === account.id && styles.accountFilterTextActive]}>
+                    {account.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       {/* Content */}
       <ScrollView 
@@ -295,5 +341,62 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  // Account filter styles
+  accountFilterContainer: {
+    marginBottom: 16,
+    marginTop: 0,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 4,
+    overflow: 'visible',
+  },
+  accountFilterPillWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  accountFilterScroll: {
+    overflow: 'visible',
+  },
+  accountFilterContent: {
+    paddingRight: 0,
+    paddingLeft: 0,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 4,
+    alignItems: 'center',
+  },
+  accountFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 5,
+    minHeight: 36,
+  },
+  accountFilterButtonActive: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  accountIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountFilterText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountFilterTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });
