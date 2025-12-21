@@ -304,7 +304,7 @@ The app includes comprehensive validation to ensure data integrity:
 ### **App Configuration** (`app.json`)
 - App name: Wally
 - Package: com.saiyamjn.Wally
-- Version: 4.1.2
+- Version: 5.0.0
 - Orientation: Portrait
 - Theme: Dark
 
