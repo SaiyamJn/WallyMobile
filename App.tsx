@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppProvider, useApp } from './src/contexts/AppContext';
+import { ErrorBoundary } from './src/components/ui/ErrorBoundary';
 import { Dashboard } from './src/components/Dashboard';
 import { TransactionsList } from './src/components/TransactionsList';
 import { AddTransactionForm } from './src/components/AddTransactionForm';
@@ -23,9 +24,22 @@ import { PersonForm } from './src/components/PersonForm';
 import { ExpenseForm } from './src/components/ExpenseForm';
 
 function AppContent() {
-  const { state, dispatch } = useApp();
   const [isLoading, setIsLoading] = useState(true);
   const [assetsReady, setAssetsReady] = useState(false);
+  
+  // useApp must be called unconditionally (React hooks rule)
+  // ErrorBoundary will catch any errors from useApp
+  const { state, dispatch } = useApp();
+  
+  // Ensure state is available before proceeding
+  if (!state || !dispatch) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </View>
+    );
+  }
 
   // Preload critical assets to prevent glitching
   useEffect(() => {
@@ -59,6 +73,8 @@ function AppContent() {
 
   // Handle Android back button
   useEffect(() => {
+    if (!state || !dispatch) return;
+    
     const backAction = () => {
       // Don't handle back button during loading
       if (isLoading) {
@@ -72,16 +88,25 @@ function AppContent() {
       }
 
       // Otherwise, go back in navigation history
-      dispatch({ type: 'GO_BACK' });
-      return true; // Prevent default back behavior
+      try {
+        dispatch({ type: 'GO_BACK' });
+        return true; // Prevent default back behavior
+      } catch (error) {
+        console.error('Error handling back button:', error);
+        return false;
+      }
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
 
     return () => backHandler.remove();
-  }, [state.currentScreen, isLoading, dispatch]);
+  }, [state?.currentScreen, isLoading, dispatch]);
 
   const renderCurrentScreen = () => {
+    if (!state || !state.currentScreen) {
+      return <Dashboard />;
+    }
+    
     switch (state.currentScreen) {
       case 'dashboard':
         return <Dashboard />;
@@ -159,10 +184,10 @@ function AppContent() {
               {renderCurrentScreen()}
             </View>
           </KeyboardAvoidingView>
-          {!['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
+          {state && state.currentScreen && !['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
             <BottomNavigation />
           )}
-          {['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
+          {state && state.currentScreen && ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
             <DividoBottomNavigation />
           )}
         </View>
@@ -173,9 +198,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -221,5 +250,11 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     width: '100%',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ef4444',
+    textAlign: 'center',
+    padding: 20,
   },
 });

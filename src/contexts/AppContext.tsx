@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState } from 'react';
 import { Transaction, Category, Currency, Screen, Account, Person, ExpenseGroup, Expense, Settlement } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { defaultCategoryIcons } from '../utils/iconUtils';
@@ -525,12 +525,19 @@ const AppContext = createContext<{
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load data from storage on app start
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Ensure AsyncStorage is available
+        if (!AsyncStorage) {
+          console.error('AsyncStorage is not available');
+          setIsLoaded(true);
+          return;
+        }
+        
         // Check if this is a fresh installation by looking for any existing data
         const hasExistingData = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
         
@@ -635,12 +642,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoaded) {
       const saveData = async () => {
-        // Determine which app the user is currently in
-        // Divido screens: 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'
-        const dividoScreens = ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
-        const activeApp = dividoScreens.includes(state.currentScreen) ? 'divido' : 'wally';
-        
-        await Promise.all([
+        try {
+          // Ensure AsyncStorage is available
+          if (!AsyncStorage) {
+            console.error('AsyncStorage is not available for saving');
+            return;
+          }
+          
+          // Determine which app the user is currently in
+          // Divido screens: 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'
+          const dividoScreens = ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
+          const activeApp = dividoScreens.includes(state.currentScreen) ? 'divido' : 'wally';
+          
+          await Promise.all([
           saveToStorage(STORAGE_KEYS.TRANSACTIONS, state.transactions),
           saveToStorage(STORAGE_KEYS.CATEGORIES, state.categories),
           saveToStorage(STORAGE_KEYS.ACCOUNTS, state.accounts),
@@ -653,6 +667,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Save only which app the user is in (Wally or Divido)
           saveToStorage(STORAGE_KEYS.ACTIVE_APP, activeApp)
         ]);
+        } catch (error) {
+          console.error('Error saving data:', error);
+          // Don't throw - just log the error to prevent crashes
+        }
       };
       saveData();
     }
