@@ -132,9 +132,33 @@ const saveToStorage = async (key: string, data: any) => {
 const loadFromStorage = async (key: string, defaultValue: any) => {
   try {
     const data = await AsyncStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
+    if (!data) {
+      return defaultValue;
+    }
+    
+    // Try to parse the JSON data
+    try {
+      const parsed = JSON.parse(data);
+      return parsed;
+    } catch (parseError) {
+      // If JSON parsing fails, the data is corrupted
+      console.error(`Corrupted data detected in ${key}, clearing it:`, parseError);
+      // Clear the corrupted data to prevent future issues
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch (removeError) {
+        console.error(`Failed to remove corrupted data from ${key}:`, removeError);
+      }
+      return defaultValue;
+    }
   } catch (error) {
-    console.error('Error loading from storage:', error);
+    console.error(`Error loading from storage key ${key}:`, error);
+    // If there's any other error, try to clear the data and return default
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch (removeError) {
+      console.error(`Failed to remove data from ${key}:`, removeError);
+    }
     return defaultValue;
   }
 };
@@ -526,11 +550,13 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   // Load data from storage on app start
   useEffect(() => {
     const loadData = async () => {
       try {
+        setHasError(false);
         // Ensure AsyncStorage is available
         if (!AsyncStorage) {
           console.error('AsyncStorage is not available');
@@ -539,15 +565,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         // Check if this is a fresh installation by looking for any existing data
-        const hasExistingData = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        let hasExistingData = false;
+        try {
+          const transactionsData = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+          hasExistingData = transactionsData !== null;
+        } catch (checkError) {
+          console.error('Error checking for existing data:', checkError);
+          hasExistingData = false;
+        }
         
         if (hasExistingData) {
-          // Load existing data from storage
-          const [
-            transactions, categories, accounts, currency, dataVersion, 
-            people, expenseGroups, expenses, settlements,
-            activeApp
-          ] = await Promise.all([
+          // Load existing data from storage with individual error handling
+          // Use Promise.allSettled to ensure all loads complete even if some fail
+          const results = await Promise.allSettled([
             loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []),
             loadFromStorage(STORAGE_KEYS.CATEGORIES, defaultCategories),
             loadFromStorage(STORAGE_KEYS.ACCOUNTS, []),
@@ -559,6 +589,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
             loadFromStorage(STORAGE_KEYS.SETTLEMENTS, []),
             loadFromStorage(STORAGE_KEYS.ACTIVE_APP, 'wally')
           ]);
+
+          // Extract values from results, using defaults if any failed
+          const transactions = results[0].status === 'fulfilled' ? results[0].value : [];
+          const categories = results[1].status === 'fulfilled' ? results[1].value : defaultCategories;
+          const accounts = results[2].status === 'fulfilled' ? results[2].value : [];
+          const currency = results[3].status === 'fulfilled' ? results[3].value : initialState.currentCurrency;
+          const dataVersion = results[4].status === 'fulfilled' ? results[4].value : CURRENT_DATA_VERSION;
+          const people = results[5].status === 'fulfilled' ? results[5].value : [];
+          const expenseGroups = results[6].status === 'fulfilled' ? results[6].value : [];
+          const expenses = results[7].status === 'fulfilled' ? results[7].value : [];
+          const settlements = results[8].status === 'fulfilled' ? results[8].value : [];
+          const activeApp = results[9].status === 'fulfilled' ? results[9].value : 'wally';
+
+          // Log any failures for debugging
+          const keys = [
+            STORAGE_KEYS.TRANSACTIONS,
+            STORAGE_KEYS.CATEGORIES,
+            STORAGE_KEYS.ACCOUNTS,
+            STORAGE_KEYS.CURRENCY,
+            STORAGE_KEYS.DATA_VERSION,
+            STORAGE_KEYS.PEOPLE,
+            STORAGE_KEYS.EXPENSE_GROUPS,
+            STORAGE_KEYS.EXPENSES,
+            STORAGE_KEYS.SETTLEMENTS,
+            STORAGE_KEYS.ACTIVE_APP
+          ];
+          results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              console.error(`Failed to load ${keys[index]}:`, result.reason);
+            }
+          });
+          
+          // Log successful data load summary
+          const loadedCount = results.filter(r => r.status === 'fulfilled').length;
+          console.log(`Successfully loaded ${loadedCount}/${results.length} storage items`);
 
           // Future: Add migration logic here if dataVersion !== CURRENT_DATA_VERSION
           if (dataVersion !== CURRENT_DATA_VERSION) {
@@ -617,25 +682,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         setIsLoaded(true);
       } catch (error) {
-        console.error('Error loading data:', error);
-        // On error, start with clean state
-        dispatch({ type: 'LOAD_DATA', payload: {
-          transactions: [],
-          categories: defaultCategories,
-          accounts: [],
-          currentCurrency: initialState.currentCurrency,
-          people: [],
-          expenseGroups: [],
-          expenses: [],
-          settlements: [],
-          currentScreen: 'dashboard',
-          navigationHistory: ['dashboard']
-        }});
+        console.error('Critical error loading data:', error);
+        setHasError(true);
+        
+        // On error, start with clean state and try to clear any corrupted storage
+        try {
+          // Attempt to clear all storage to prevent future issues
+          await clearAllStorage();
+        } catch (clearError) {
+          console.error('Error clearing storage after failure:', clearError);
+        }
+        
+        // Start with clean state - ensure this always succeeds
+        try {
+          dispatch({ type: 'LOAD_DATA', payload: {
+            transactions: [],
+            categories: defaultCategories,
+            accounts: [],
+            currentCurrency: initialState.currentCurrency,
+            people: [],
+            expenseGroups: [],
+            expenses: [],
+            settlements: [],
+            currentScreen: 'dashboard',
+            navigationHistory: ['dashboard']
+          }});
+        } catch (dispatchError) {
+          console.error('Error dispatching initial state:', dispatchError);
+          // If dispatch fails, state is already at initialState, which is fine
+        }
+        
         setIsLoaded(true);
       }
     };
 
-    loadData();
+    // Wrap loadData in a try-catch to ensure we always set isLoaded
+    try {
+      loadData();
+    } catch (error) {
+      console.error('Fatal error in loadData initialization:', error);
+      setHasError(true);
+      setIsLoaded(true); // Always set loaded to true so app can render
+    }
   }, []);
 
   // Save data to storage whenever state changes
@@ -944,51 +1032,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })}`;
   };
 
-  // Show loading state while data is being loaded
-  // Return a minimal provider with default state to prevent crashes
-  if (!isLoaded) {
+  // Always provide a valid context, even during loading or errors
+  // This ensures useApp() never throws "must be used within AppProvider"
+  const safeState = hasError ? initialState : (state || initialState);
+  const safeDispatch = hasError ? (() => {}) : dispatch;
+  const safeCurrency = safeState.currentCurrency || initialState.currentCurrency;
+  
+  const contextValue = !isLoaded ? {
+    state: initialState,
+    dispatch: () => {}, // No-op dispatch during loading
+    currencies,
+    convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => {
+      const fromRate = currencies.find(c => c.code === fromCurrency)?.rate || 1;
+      const toRate = currencies.find(c => c.code === toCurrency)?.rate || 1;
+      const usdAmount = amount / fromRate;
+      return usdAmount * toRate;
+    },
+    formatCurrency: (amount: number, currency = initialState.currentCurrency) => {
+      return `${currency.symbol}${amount.toLocaleString('en-US', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 2 
+      })}`;
+    },
+    exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency, people: [], expenseGroups: [], expenses: [], settlements: [] }),
+    importData: async () => ({ success: false, message: 'App is still loading' }),
+    exportDividoData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), type: 'divido', people: [], expenseGroups: [], expenses: [], settlements: [] }),
+    importDividoData: async () => ({ success: false, message: 'App is still loading' })
+  } : {
+    state: safeState,
+    dispatch: safeDispatch,
+    currencies,
+    convertAmount,
+    formatCurrency: (amount: number, currency = safeCurrency) => {
+      return `${currency.symbol}${amount.toLocaleString('en-US', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 2 
+      })}`;
+    },
+    exportData,
+    importData,
+    exportDividoData,
+    importDividoData
+  };
+
+  // Always render the provider with a valid context value
+  // This prevents "useApp must be used within AppProvider" errors
+  try {
+    return (
+      <AppContext.Provider value={contextValue}>
+        {children}
+      </AppContext.Provider>
+    );
+  } catch (error) {
+    // If rendering fails, try to render with minimal context
+    console.error('Error rendering AppProvider, using fallback:', error);
     return (
       <AppContext.Provider value={{
         state: initialState,
-        dispatch: () => {}, // No-op dispatch during loading
+        dispatch: () => {},
         currencies,
-        convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => {
-          const fromRate = currencies.find(c => c.code === fromCurrency)?.rate || 1;
-          const toRate = currencies.find(c => c.code === toCurrency)?.rate || 1;
-          const usdAmount = amount / fromRate;
-          return usdAmount * toRate;
-        },
-        formatCurrency: (amount: number, currency = initialState.currentCurrency) => {
-          return `${currency.symbol}${amount.toLocaleString('en-US', { 
-            minimumFractionDigits: 0, 
-            maximumFractionDigits: 2 
-          })}`;
-        },
-        exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency, people: [], expenseGroups: [], expenses: [], settlements: [] }),
-        importData: async () => ({ success: false, message: 'App is still loading' }),
-        exportDividoData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), type: 'divido', people: [], expenseGroups: [], expenses: [], settlements: [] }),
-        importDividoData: async () => ({ success: false, message: 'App is still loading' })
+        convertAmount: () => 0,
+        formatCurrency: () => '',
+        exportData: async () => '{}',
+        importData: async () => ({ success: false, message: 'Error occurred' }),
+        exportDividoData: async () => '{}',
+        importDividoData: async () => ({ success: false, message: 'Error occurred' })
       }}>
         {children}
       </AppContext.Provider>
     );
   }
-
-  return (
-    <AppContext.Provider value={{
-      state,
-      dispatch,
-      currencies,
-      convertAmount,
-      formatCurrency,
-      exportData,
-      importData,
-      exportDividoData,
-      importDividoData
-    }}>
-      {children}
-    </AppContext.Provider>
-  );
 }
 
 export function useApp() {

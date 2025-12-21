@@ -8,10 +8,22 @@ try {
   if (ErrorUtils && typeof ErrorUtils.getGlobalHandler === 'function') {
     const originalHandler = ErrorUtils.getGlobalHandler();
     ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
-      console.error('Global error handler:', error, isFatal);
+      console.error('Global error handler caught error:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Is fatal:', isFatal);
+      
+      // Try to prevent crashes for non-fatal errors
+      if (!isFatal) {
+        console.warn('Non-fatal error, attempting to continue...');
+      }
+      
       // Call original handler to maintain default behavior
       if (originalHandler) {
-        originalHandler(error, isFatal);
+        try {
+          originalHandler(error, isFatal);
+        } catch (handlerError) {
+          console.error('Error in original error handler:', handlerError);
+        }
       }
     });
   }

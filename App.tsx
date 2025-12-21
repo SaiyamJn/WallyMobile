@@ -26,10 +26,25 @@ import { ExpenseForm } from './src/components/ExpenseForm';
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [assetsReady, setAssetsReady] = useState(false);
+  const [initError, setInitError] = useState<Error | null>(null);
   
-  // useApp must be called unconditionally (React hooks rule)
-  // ErrorBoundary will catch any errors from useApp
-  const { state, dispatch } = useApp();
+  // Safely get app context - wrap in try-catch to prevent crashes
+  let appContext;
+  try {
+    appContext = useApp();
+  } catch (error) {
+    console.error('Error getting app context:', error);
+    setInitError(error instanceof Error ? error : new Error('Failed to initialize app context'));
+    // Return error UI
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>Failed to initialize app</Text>
+        <Text style={styles.loadingText}>Please restart the app</Text>
+      </View>
+    );
+  }
+  
+  const { state, dispatch } = appContext;
   
   // Ensure state is available before proceeding
   if (!state || !dispatch) {

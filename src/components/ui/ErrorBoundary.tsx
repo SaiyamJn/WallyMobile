@@ -39,11 +39,27 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null
-    });
+    try {
+      // Reset error state - this will cause the component tree to re-render
+      // The AppProvider will handle any corrupted data on its own initialization
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null
+      });
+    } catch (error) {
+      console.error('Error in handleReset:', error);
+      // Force reset even if setState fails
+      try {
+        this.setState({
+          hasError: false,
+          error: null,
+          errorInfo: null
+        });
+      } catch (resetError) {
+        console.error('Critical error in handleReset, cannot recover:', resetError);
+      }
+    }
   };
 
   render() {
