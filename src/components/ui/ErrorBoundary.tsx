@@ -112,14 +112,19 @@ export class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.message}>
               The app encountered an unexpected error. Please try restarting the app.
             </Text>
-            {__DEV__ && this.state.error && (
+            {this.state.error && (
               <View style={styles.errorDetails}>
                 <Text style={styles.errorText}>
                   {this.state.error.toString()}
                 </Text>
+                {this.state.error.stack && (
+                  <Text style={styles.errorInfo}>
+                    {this.state.error.stack.substring(0, 500)}
+                  </Text>
+                )}
                 {this.state.errorInfo && (
                   <Text style={styles.errorInfo}>
-                    {this.state.errorInfo.componentStack}
+                    {this.state.errorInfo.componentStack?.substring(0, 500)}
                   </Text>
                 )}
               </View>

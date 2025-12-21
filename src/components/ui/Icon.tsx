@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, Image, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { getIconSource, getEmojiFallback, shouldUseAsset, hasIcon, IconName } from '../../utils/iconUtils';
 import { ICON_SIZES } from '../../constants/iconSizes';

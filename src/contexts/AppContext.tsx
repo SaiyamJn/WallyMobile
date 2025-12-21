@@ -660,11 +660,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const validExpenses = Array.isArray(expenses) ? expenses : [];
           const validSettlements = Array.isArray(settlements) ? settlements : [];
           
-          // Always start on dashboard screen to prevent crashes from invalid screen states
-          // Don't restore screen state as it might require data that doesn't exist
-          // This prevents crashes when restoring to screens like 'edit-transaction', 'expense-group-detail', etc.
-          const restoredScreen = 'dashboard';
-          const restoredNavigation = ['dashboard'];
+          // Restore to where user left off, but only to safe screens
+          // Safe screens don't require specific data (no detail/edit screens)
+          // Wally safe screens: 'dashboard', 'transactions', 'accounts', 'reports', 'settings', 'categories'
+          // Divido safe screens: 'divido', 'people-list', 'divido-settings'
+          let restoredScreen: Screen = 'dashboard';
+          
+          if (activeApp === 'divido') {
+            // User was in Divido - restore to Divido home
+            restoredScreen = 'divido';
+          } else {
+            // User was in Wally - restore to dashboard
+            restoredScreen = 'dashboard';
+          }
+          
+          const restoredNavigation = [restoredScreen];
 
           dispatch({ type: 'LOAD_DATA', payload: {
             transactions: validTransactions,

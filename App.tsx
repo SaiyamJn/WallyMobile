@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform, ErrorUtils, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform, ErrorUtils, TouchableOpacity, ScrollView } from 'react-native';
+// Import all components normally - they should all work fine
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import { ErrorBoundary } from './src/components/ui/ErrorBoundary';
 import { Dashboard } from './src/components/Dashboard';
@@ -26,25 +27,9 @@ import { ExpenseForm } from './src/components/ExpenseForm';
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [assetsReady, setAssetsReady] = useState(false);
-  const [initError, setInitError] = useState<Error | null>(null);
   
-  // Safely get app context - wrap in try-catch to prevent crashes
-  let appContext;
-  try {
-    appContext = useApp();
-  } catch (error) {
-    console.error('Error getting app context:', error);
-    setInitError(error instanceof Error ? error : new Error('Failed to initialize app context'));
-    // Return error UI
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Failed to initialize app</Text>
-        <Text style={styles.loadingText}>Please restart the app</Text>
-      </View>
-    );
-  }
-  
-  const { state, dispatch } = appContext;
+  // Get app context - this will work since AppContent is inside AppProvider
+  const { state, dispatch } = useApp();
   
   // Ensure state is available before proceeding
   if (!state || !dispatch) {
@@ -122,44 +107,64 @@ function AppContent() {
     return () => backHandler.remove();
   }, [state?.currentScreen, isLoading, dispatch]);
 
+  // Validate screen state and fix invalid screens using useEffect (not during render)
+  useEffect(() => {
+    if (!state || !state.currentScreen || isLoading) return;
+    
+    const currentScreen = state.currentScreen;
+    let needsRedirect = false;
+    let redirectTo: Screen = 'dashboard';
+    
+    // Screens that require specific data - validate and redirect if needed
+    if (currentScreen === 'edit-transaction' && !state.selectedTransactionId) {
+      console.warn('edit-transaction screen requires selectedTransactionId, redirecting to dashboard');
+      needsRedirect = true;
+      redirectTo = 'dashboard';
+    } else if (currentScreen === 'expense-group-detail' && !state.selectedExpenseGroupId) {
+      console.warn('expense-group-detail screen requires selectedExpenseGroupId, redirecting to divido');
+      needsRedirect = true;
+      redirectTo = 'divido';
+    } else if (currentScreen === 'edit-expense' && !state.selectedExpenseId) {
+      console.warn('edit-expense screen requires selectedExpenseId, redirecting to divido');
+      needsRedirect = true;
+      redirectTo = 'divido';
+    } else if (currentScreen === 'edit-person' && !state.selectedPersonId) {
+      console.warn('edit-person screen requires selectedPersonId, redirecting to people-list');
+      needsRedirect = true;
+      redirectTo = 'people-list';
+    } else if (currentScreen === 'category-transactions' && !state.selectedCategory) {
+      console.warn('category-transactions screen requires selectedCategory, redirecting to dashboard');
+      needsRedirect = true;
+      redirectTo = 'dashboard';
+    } else {
+      // Check for unknown/invalid screens
+      const validScreens: Screen[] = ['dashboard', 'transactions', 'add-transaction', 'edit-transaction', 'categories', 'reports', 'settings', 'accounts', 'category-transactions', 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
+      if (!validScreens.includes(currentScreen)) {
+        console.warn(`Unknown screen: ${currentScreen}, redirecting to dashboard`);
+        needsRedirect = true;
+        redirectTo = 'dashboard';
+      }
+    }
+    
+    if (needsRedirect) {
+      dispatch({ type: 'SET_SCREEN', payload: redirectTo });
+    }
+  }, [state?.currentScreen, state?.selectedTransactionId, state?.selectedExpenseGroupId, state?.selectedExpenseId, state?.selectedPersonId, state?.selectedCategory, isLoading, dispatch]);
+
   const renderCurrentScreen = () => {
     if (!state || !state.currentScreen) {
       return <Dashboard />;
     }
     
-    // Validate screen and required data before rendering
-    // This prevents crashes from invalid screen states
     const currentScreen = state.currentScreen;
     
-    // Screens that require specific data - validate before rendering
-    if (currentScreen === 'edit-transaction' && !state.selectedTransactionId) {
-      console.warn('edit-transaction screen requires selectedTransactionId, redirecting to dashboard');
-      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
-      return <Dashboard />;
-    }
-    
-    if (currentScreen === 'expense-group-detail' && !state.selectedExpenseGroupId) {
-      console.warn('expense-group-detail screen requires selectedExpenseGroupId, redirecting to divido');
-      dispatch({ type: 'SET_SCREEN', payload: 'divido' });
-      return <Divido />;
-    }
-    
-    if (currentScreen === 'edit-expense' && !state.selectedExpenseId) {
-      console.warn('edit-expense screen requires selectedExpenseId, redirecting to divido');
-      dispatch({ type: 'SET_SCREEN', payload: 'divido' });
-      return <Divido />;
-    }
-    
-    if (currentScreen === 'edit-person' && !state.selectedPersonId) {
-      console.warn('edit-person screen requires selectedPersonId, redirecting to people-list');
-      dispatch({ type: 'SET_SCREEN', payload: 'people-list' });
-      return <PeopleList />;
-    }
-    
-    if (currentScreen === 'category-transactions' && !state.selectedCategory) {
-      console.warn('category-transactions screen requires selectedCategory, redirecting to dashboard');
-      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
-      return <Dashboard />;
+    // If screen is invalid, show dashboard while useEffect fixes it
+    if ((currentScreen === 'edit-transaction' && !state.selectedTransactionId) ||
+        (currentScreen === 'expense-group-detail' && !state.selectedExpenseGroupId) ||
+        (currentScreen === 'edit-expense' && !state.selectedExpenseId) ||
+        (currentScreen === 'edit-person' && !state.selectedPersonId) ||
+        (currentScreen === 'category-transactions' && !state.selectedCategory)) {
+      return <Dashboard />; // Show dashboard while redirect happens
     }
     
     try {
@@ -205,13 +210,10 @@ function AppContent() {
           return <ExpenseForm />;
         default:
           console.warn(`Unknown screen: ${currentScreen}, redirecting to dashboard`);
-          dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
           return <Dashboard />;
       }
     } catch (error) {
       console.error(`Error rendering screen ${currentScreen}:`, error);
-      // Fallback to dashboard on any rendering error
-      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
       return <Dashboard />;
     }
   };
@@ -274,12 +276,17 @@ function AppContent() {
 }
 
 // Minimal fallback component that doesn't depend on any context or imports
-function MinimalFallback() {
+function MinimalFallback({ error }: { error?: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
       <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
         Wally
       </Text>
+      {error && (
+        <Text style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', marginBottom: 16, fontFamily: 'monospace' }}>
+          {error}
+        </Text>
+      )}
       <Text style={{ color: '#9ca3af', fontSize: 16, textAlign: 'center', marginBottom: 32 }}>
         Initializing app...
       </Text>
@@ -292,24 +299,35 @@ function MinimalFallback() {
 function SafeAppWrapper() {
   const [hasError, setHasError] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string>('');
+  const [errorStack, setErrorStack] = React.useState<string>('');
 
   // Catch any errors during initialization
   React.useEffect(() => {
     const errorHandler = (error: Error) => {
       console.error('Error in SafeAppWrapper:', error);
+      console.error('Error stack:', error.stack);
       setHasError(true);
       setErrorMessage(error.message || 'Unknown error');
+      setErrorStack(error.stack || '');
     };
 
     // Set up error handler
-    if (typeof ErrorUtils !== 'undefined') {
-      const originalHandler = ErrorUtils.getGlobalHandler?.();
-      if (originalHandler) {
-        ErrorUtils.setGlobalHandler?.((error: Error, isFatal?: boolean) => {
-          errorHandler(error);
-          originalHandler(error, isFatal);
-        });
+    try {
+      if (typeof ErrorUtils !== 'undefined' && ErrorUtils.getGlobalHandler) {
+        const originalHandler = ErrorUtils.getGlobalHandler();
+        if (originalHandler) {
+          ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+            errorHandler(error);
+            try {
+              originalHandler(error, isFatal);
+            } catch (e) {
+              console.error('Error in original handler:', e);
+            }
+          });
+        }
       }
+    } catch (setupError) {
+      console.error('Error setting up error handler:', setupError);
     }
 
     return () => {
@@ -332,11 +350,13 @@ function SafeAppWrapper() {
       // Reset error state
       setHasError(false);
       setErrorMessage('');
+      setErrorStack('');
     } catch (error) {
       console.error('Error in handleClearAndRestart:', error);
       // Still try to reset
       setHasError(false);
       setErrorMessage('');
+      setErrorStack('');
     }
   };
 
@@ -346,9 +366,16 @@ function SafeAppWrapper() {
         <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
           Error
         </Text>
-        <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginBottom: 32 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>
           {errorMessage}
         </Text>
+        {__DEV__ && errorStack && (
+          <ScrollView style={{ maxHeight: 200, width: '100%', backgroundColor: '#1a1a1a', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+            <Text style={{ color: '#ef4444', fontSize: 10, fontFamily: 'monospace' }}>
+              {errorStack.substring(0, 500)}
+            </Text>
+          </ScrollView>
+        )}
         <TouchableOpacity 
           style={{ backgroundColor: '#ef4444', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, minWidth: 200, marginBottom: 12 }}
           onPress={handleClearAndRestart}
@@ -376,7 +403,9 @@ function SafeAppWrapper() {
     );
   } catch (error) {
     console.error('Error rendering app:', error);
-    return <MinimalFallback />;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
+    return <MinimalFallback error={`Render error: ${errorMsg}`} />;
   }
 }
 
@@ -386,7 +415,8 @@ export default function App() {
     return <SafeAppWrapper />;
   } catch (error) {
     console.error('Fatal error in App component:', error);
-    return <MinimalFallback />;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    return <MinimalFallback error={`Fatal: ${errorMsg}`} />;
   }
 }
 
