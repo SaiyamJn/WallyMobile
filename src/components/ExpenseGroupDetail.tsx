@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
+import { PersonAvatar } from './ui/PersonAvatar';
 import { ICON_SIZES } from '../constants/iconSizes';
-import { SideMenu } from './SideMenu';
 import { Settlement } from '../types';
 import { 
   calculateBalances, 
@@ -18,7 +18,6 @@ export function ExpenseGroupDetail() {
   const { state, dispatch, formatCurrency } = useApp();
   const { alertState, hideAlert, showConfirmAlert, showErrorAlert } = useCustomAlert();
   const [activeTab, setActiveTab] = useState<'expenses' | 'visualizations' | 'settlements'>('expenses');
-  const [showSideMenu, setShowSideMenu] = useState(false);
 
   const group = state.expenseGroups.find(g => g.id === state.selectedExpenseGroupId);
   
@@ -46,7 +45,7 @@ export function ExpenseGroupDetail() {
   };
   
   // Helper to mark a debt as settled
-  const handleSettleDebt = React.useCallback((debt: { from: string; to: string; amount: number }) => {
+  const handleSettleDebt = useCallback((debt: { from: string; to: string; amount: number }) => {
     try {
       if (!group || !group.id) {
         console.error('Group not found when settling debt');
@@ -140,12 +139,6 @@ export function ExpenseGroupDetail() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setShowSideMenu(true)}
-        >
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
         <TouchableOpacity 
           onPress={() => {
             dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
@@ -170,12 +163,6 @@ export function ExpenseGroupDetail() {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Side Menu */}
-      <SideMenu 
-        visible={showSideMenu}
-        onClose={() => setShowSideMenu(false)}
-      />
 
       {/* Summary Card */}
       <View style={styles.summaryCard}>
@@ -230,7 +217,7 @@ export function ExpenseGroupDetail() {
             style={styles.addButton}
             onPress={handleAddExpense}
           >
-            <Icon name="add" size={ICON_SIZES.SM} />
+            <Icon name="add" size={ICON_SIZES.SM} color="#ffffff" />
             <Text style={styles.addButtonText}>Add Expense</Text>
           </TouchableOpacity>
 
@@ -266,7 +253,7 @@ export function ExpenseGroupDetail() {
                           </Text>
                           <View style={styles.expenseMetaRow}>
                             <View style={styles.metaBadge}>
-                              <Icon name="card" size={10} color="#9ca3af" />
+                              <Icon name="groups" size={10} color="#9ca3af" />
                               <Text style={styles.expenseMeta}>
                                 {paidByPerson?.name || 'Unknown'}
                               </Text>
@@ -295,7 +282,7 @@ export function ExpenseGroupDetail() {
                           return (
                             <View key={split.personId} style={styles.splitItem}>
                               <View style={[styles.splitPersonIcon, { backgroundColor: person?.color + '20' }]}>
-                                <Icon name={person?.icon as any || 'default'} size={10} />
+                                <PersonAvatar icon={person?.icon || 'av0'} size={24} />
                               </View>
                               <Text style={styles.splitPersonName} numberOfLines={1}>
                                 {person?.name || 'Unknown'}
@@ -355,7 +342,7 @@ export function ExpenseGroupDetail() {
                         >
                           <View style={styles.categoryBarHeader}>
                             <View style={styles.categoryBarLeft}>
-                              <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                              <PersonAvatar icon={person.icon} size={24} />
                               <Text style={styles.categoryBarName}>{person.name}</Text>
                             </View>
                             <Text style={styles.categoryBarAmount}>{formatCurrency(balance.totalPaid)}</Text>
@@ -412,7 +399,7 @@ export function ExpenseGroupDetail() {
                         >
                           <View style={styles.categoryBarHeader}>
                             <View style={styles.categoryBarLeft}>
-                              <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                              <PersonAvatar icon={person.icon} size={24} />
                               <Text style={styles.categoryBarName}>{person.name}</Text>
                             </View>
                             <Text style={styles.categoryBarAmount}>{formatCurrency(balance.totalOwed)}</Text>
@@ -465,7 +452,7 @@ export function ExpenseGroupDetail() {
                         >
                           <View style={styles.categoryBarHeader}>
                             <View style={styles.categoryBarLeft}>
-                              <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                              <PersonAvatar icon={person.icon} size={24} />
                               <Text style={styles.categoryBarName}>{person.name}</Text>
                             </View>
                             <Text style={[
@@ -541,7 +528,7 @@ export function ExpenseGroupDetail() {
                           <View style={styles.debtHeader}>
                             <View style={styles.debtLeft}>
                               <View style={[styles.personIcon, { backgroundColor: fromPerson?.color + '20' }]}>
-                                <Icon name={fromPerson?.icon as any || 'default'} size={ICON_SIZES.SM} />
+                                <PersonAvatar icon={fromPerson?.icon || 'av0'} size={40} />
                               </View>
                               <View style={styles.debtInfo}>
                                 <Text style={styles.debtText}>
@@ -624,23 +611,23 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
-  },
-  menuButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  menuIcon: {
-    fontSize: 24,
-    color: '#ffffff',
-    fontWeight: 'bold',
   },
   backButton: {
     padding: 8,
-    marginRight: 8,
+    marginRight: 12,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#3a3a3a',
+    borderRadius: 12,
   },
   headerCenter: {
     flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 8,
   },
   groupName: {
     fontSize: 24,
@@ -696,7 +683,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
   },
   tabText: {
     fontSize: 14,
@@ -713,7 +700,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     borderRadius: 12,
     padding: 16,
     gap: 8,
@@ -729,7 +716,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: '#ec9706',
     marginBottom: 12,
   },
   expenseHeader: {
@@ -952,6 +939,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 12,
+  },
+  personIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   debtInfo: {
     flex: 1,

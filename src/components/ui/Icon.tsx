@@ -14,7 +14,9 @@ const shouldApplyTinting = (iconName: string): boolean => {
     'card', 'food', 'car', 'plane', 'bank', 'diamond', 'target', 'rocket', 'star',
     'lock', 'briefcase', 'home', 'game', 'book', 'palette', 'music',
     'shopping', 'movie', 'lightning', 'hospital', 'laptop', 'pizza', 'coffee',
-    'popcorn', 'chart'
+    'popcorn', 'chart', 'divido', 'people', 'groups',
+    // Action icons that should maintain their original appearance
+    'edit', 'delete', 'save', 'cancel', 'up', 'down'
   ];
   
   return !noTintingIcons.includes(iconName);
@@ -28,11 +30,11 @@ interface IconProps {
 }
 
 export function Icon({ name, size = ICON_SIZES.LG, color, style }: IconProps) {
-  const [imageError, setImageError] = React.useState(false);
+  const [imageError, setImageError] = useState(false);
   const useAsset = shouldUseAsset(name);
   
   // Reset error state when name changes
-  React.useEffect(() => {
+  useEffect(() => {
     setImageError(false);
   }, [name]);
   

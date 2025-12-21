@@ -43,7 +43,10 @@ type AppAction =
   | { type: 'SET_SELECTED_CATEGORY'; payload: string | null }
   | { type: 'GO_BACK' }
   | { type: 'LOAD_DATA'; payload: Partial<AppState> }
+  | { type: 'LOAD_DIVIDO_DATA'; payload: { people: Person[]; expenseGroups: ExpenseGroup[]; expenses: Expense[]; settlements: Settlement[] } }
   | { type: 'CLEAR_ALL_DATA' }
+  | { type: 'CLEAR_WALLY_DATA' }
+  | { type: 'CLEAR_DIVIDO_DATA' }
   // Divido actions
   | { type: 'ADD_PERSON'; payload: Person }
   | { type: 'UPDATE_PERSON'; payload: Person }
@@ -73,7 +76,7 @@ const currencies: Currency[] = [
 
 const defaultCategories: Category[] = [
   { id: '1', name: 'Food & Dining', type: 'expense', icon: defaultCategoryIcons['Food & Dining'], color: '#ef4444' },
-  { id: '2', name: 'Transportation', type: 'expense', icon: defaultCategoryIcons['Transportation'], color: '#3b82f6' },
+  { id: '2', name: 'Transportation', type: 'expense', icon: defaultCategoryIcons['Transportation'], color: '#ed9149' },
   { id: '3', name: 'Shopping', type: 'expense', icon: defaultCategoryIcons['Shopping'], color: '#8b5cf6' },
   { id: '4', name: 'Entertainment', type: 'expense', icon: defaultCategoryIcons['Entertainment'], color: '#f59e0b' },
   { id: '5', name: 'Bills & Utilities', type: 'expense', icon: defaultCategoryIcons['Bills & Utilities'], color: '#10b981' },
@@ -91,7 +94,7 @@ const defaultAccounts: Account[] = [
     type: 'other',
     description: 'Primary account for daily expenses',
     icon: 'card',
-    color: '#3b82f6',
+    color: '#ed9149',
     balance: 0,
     currency: 'INR',
     createdAt: new Date().toISOString()
@@ -104,14 +107,14 @@ const STORAGE_KEYS = {
   CATEGORIES: 'wally_categories',
   ACCOUNTS: 'wally_accounts',
   CURRENCY: 'wally_currency',
-  SCREEN: 'wally_screen',
-  NAVIGATION: 'wally_navigation',
   DATA_VERSION: 'wally_data_version',
   // Divido storage
   PEOPLE: 'wally_people',
   EXPENSE_GROUPS: 'wally_expense_groups',
   EXPENSES: 'wally_expenses',
-  SETTLEMENTS: 'wally_settlements'
+  SETTLEMENTS: 'wally_settlements',
+  // App context (Wally or Divido)
+  ACTIVE_APP: 'wally_active_app'
 };
 
 // Data version for migration support
@@ -143,15 +146,39 @@ const clearAllStorage = async () => {
       STORAGE_KEYS.CATEGORIES,
       STORAGE_KEYS.ACCOUNTS,
       STORAGE_KEYS.CURRENCY,
-      STORAGE_KEYS.SCREEN,
-      STORAGE_KEYS.NAVIGATION,
+      STORAGE_KEYS.PEOPLE,
+      STORAGE_KEYS.EXPENSE_GROUPS,
+      STORAGE_KEYS.EXPENSES,
+      STORAGE_KEYS.SETTLEMENTS,
+      STORAGE_KEYS.ACTIVE_APP
+    ]);
+  } catch (error) {
+    console.error('Error clearing storage:', error);
+  }
+};
+
+const clearWallyStorage = async () => {
+  try {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.TRANSACTIONS,
+      STORAGE_KEYS.CATEGORIES,
+      STORAGE_KEYS.ACCOUNTS,
+    ]);
+  } catch (error) {
+    console.error('Error clearing Wally storage:', error);
+  }
+};
+
+const clearDividoStorage = async () => {
+  try {
+    await AsyncStorage.multiRemove([
       STORAGE_KEYS.PEOPLE,
       STORAGE_KEYS.EXPENSE_GROUPS,
       STORAGE_KEYS.EXPENSES,
       STORAGE_KEYS.SETTLEMENTS
     ]);
   } catch (error) {
-    console.error('Error clearing storage:', error);
+    console.error('Error clearing Divido storage:', error);
   }
 };
 
@@ -326,6 +353,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         ...action.payload
       };
+    case 'LOAD_DIVIDO_DATA':
+      return {
+        ...state,
+        people: action.payload.people,
+        expenseGroups: action.payload.expenseGroups,
+        expenses: action.payload.expenses,
+        settlements: action.payload.settlements
+      };
     case 'CLEAR_ALL_DATA':
       // Clear storage asynchronously
       clearAllStorage();
@@ -337,6 +372,32 @@ function appReducer(state: AppState, action: AppAction): AppState {
         selectedTransactionId: null,
         selectedCategory: null,
         categoryTransactions: []
+      };
+    case 'CLEAR_WALLY_DATA':
+      // Clear only Wally data (transactions, categories, accounts)
+      clearWallyStorage();
+      return {
+        ...state,
+        transactions: [],
+        categories: defaultCategories,
+        accounts: [],
+        selectedAccountId: null,
+        selectedTransactionId: null,
+        selectedCategory: null,
+        categoryTransactions: []
+      };
+    case 'CLEAR_DIVIDO_DATA':
+      // Clear only Divido data (people, expense groups, expenses, settlements)
+      clearDividoStorage();
+      return {
+        ...state,
+        people: [],
+        expenseGroups: [],
+        expenses: [],
+        settlements: [],
+        selectedExpenseGroupId: null,
+        selectedExpenseId: null,
+        selectedPersonId: null
       };
     // Divido actions
     case 'ADD_PERSON':
@@ -458,6 +519,8 @@ const AppContext = createContext<{
   formatCurrency: (amount: number, currency?: Currency) => string;
   exportData: () => Promise<string>;
   importData: (backupJson: string) => Promise<{ success: boolean; message: string }>;
+  exportDividoData: () => Promise<string>;
+  importDividoData: (backupJson: string) => Promise<{ success: boolean; message: string }>;
 } | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -473,7 +536,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         if (hasExistingData) {
           // Load existing data from storage
-          const [transactions, categories, accounts, currency, dataVersion, people, expenseGroups, expenses, settlements] = await Promise.all([
+          const [
+            transactions, categories, accounts, currency, dataVersion, 
+            people, expenseGroups, expenses, settlements,
+            activeApp
+          ] = await Promise.all([
             loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []),
             loadFromStorage(STORAGE_KEYS.CATEGORIES, defaultCategories),
             loadFromStorage(STORAGE_KEYS.ACCOUNTS, []),
@@ -482,7 +549,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             loadFromStorage(STORAGE_KEYS.PEOPLE, []),
             loadFromStorage(STORAGE_KEYS.EXPENSE_GROUPS, []),
             loadFromStorage(STORAGE_KEYS.EXPENSES, []),
-            loadFromStorage(STORAGE_KEYS.SETTLEMENTS, [])
+            loadFromStorage(STORAGE_KEYS.SETTLEMENTS, []),
+            loadFromStorage(STORAGE_KEYS.ACTIVE_APP, 'wally')
           ]);
 
           // Future: Add migration logic here if dataVersion !== CURRENT_DATA_VERSION
@@ -499,6 +567,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const validExpenseGroups = Array.isArray(expenseGroups) ? expenseGroups : [];
           const validExpenses = Array.isArray(expenses) ? expenses : [];
           const validSettlements = Array.isArray(settlements) ? settlements : [];
+          
+          // Determine which app to restore to based on saved active app
+          // Divido screens: 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'
+          // Wally screens: everything else
+          const restoredScreen = activeApp === 'divido' ? 'divido' : 'dashboard';
+          const restoredNavigation = [restoredScreen];
 
           dispatch({ type: 'LOAD_DATA', payload: {
             transactions: validTransactions,
@@ -509,8 +583,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             expenseGroups: validExpenseGroups,
             expenses: validExpenses,
             settlements: validSettlements,
-            currentScreen: 'dashboard',
-            navigationHistory: ['dashboard']
+            currentScreen: restoredScreen,
+            navigationHistory: restoredNavigation,
+            selectedExpenseGroupId: null,
+            selectedExpenseId: null,
+            selectedPersonId: null,
+            selectedAccountId: null,
+            selectedTransactionId: null,
+            selectedCategory: null
           }});
         } else {
           // Fresh installation - start with empty data
@@ -555,6 +635,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoaded) {
       const saveData = async () => {
+        // Determine which app the user is currently in
+        // Divido screens: 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'
+        const dividoScreens = ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
+        const activeApp = dividoScreens.includes(state.currentScreen) ? 'divido' : 'wally';
+        
         await Promise.all([
           saveToStorage(STORAGE_KEYS.TRANSACTIONS, state.transactions),
           saveToStorage(STORAGE_KEYS.CATEGORIES, state.categories),
@@ -564,13 +649,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           saveToStorage(STORAGE_KEYS.PEOPLE, state.people),
           saveToStorage(STORAGE_KEYS.EXPENSE_GROUPS, state.expenseGroups),
           saveToStorage(STORAGE_KEYS.EXPENSES, state.expenses),
-          saveToStorage(STORAGE_KEYS.SETTLEMENTS, state.settlements)
-          // Don't save screen and navigation - always start on dashboard
+          saveToStorage(STORAGE_KEYS.SETTLEMENTS, state.settlements),
+          // Save only which app the user is in (Wally or Divido)
+          saveToStorage(STORAGE_KEYS.ACTIVE_APP, activeApp)
         ]);
       };
       saveData();
     }
-  }, [state, isLoaded]);
+  }, [
+    state.transactions, state.categories, state.accounts, state.currentCurrency, 
+    state.people, state.expenseGroups, state.expenses, state.settlements,
+    state.currentScreen,
+    isLoaded
+  ]);
 
   // Export data as JSON string
   const exportData = async (): Promise<string> => {
@@ -581,6 +672,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       categories: state.categories,
       accounts: state.accounts,
       currentCurrency: state.currentCurrency,
+      people: state.people,
+      expenseGroups: state.expenseGroups,
+      expenses: state.expenses,
+      settlements: state.settlements
+    };
+    return JSON.stringify(backupData, null, 2);
+  };
+
+  // Export Divido data only
+  const exportDividoData = async (): Promise<string> => {
+    const backupData = {
+      version: CURRENT_DATA_VERSION,
+      timestamp: new Date().toISOString(),
+      type: 'divido',
       people: state.people,
       expenseGroups: state.expenseGroups,
       expenses: state.expenses,
@@ -726,6 +831,87 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Validate Divido backup data structure
+  const validateDividoBackupData = (data: any): { valid: boolean; message: string } => {
+    if (!data || typeof data !== 'object') {
+      return { valid: false, message: 'Invalid backup file: Not a valid JSON object' };
+    }
+
+    if (!data.version || typeof data.version !== 'string') {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid version field' };
+    }
+
+    if (!data.timestamp || typeof data.timestamp !== 'string') {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid timestamp field' };
+    }
+
+    if (data.type && data.type !== 'divido') {
+      return { valid: false, message: 'Invalid backup file: This does not appear to be a Divido backup file. Please ensure you are importing a file exported from Divido.' };
+    }
+
+    if (!Array.isArray(data.people)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid people array' };
+    }
+
+    if (!Array.isArray(data.expenseGroups)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid expenseGroups array' };
+    }
+
+    if (!Array.isArray(data.expenses)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid expenses array' };
+    }
+
+    if (!Array.isArray(data.settlements)) {
+      return { valid: false, message: 'Invalid backup file: Missing or invalid settlements array' };
+    }
+
+    return { valid: true, message: '' };
+  };
+
+  // Import Divido data from JSON string
+  const importDividoData = async (backupJson: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      let backupData: any;
+      try {
+        backupData = JSON.parse(backupJson);
+      } catch (parseError) {
+        return { success: false, message: 'Invalid backup file: Not a valid JSON file. Please ensure you are importing a Divido backup file.' };
+      }
+
+      // Validate backup data structure
+      const validation = validateDividoBackupData(backupData);
+      if (!validation.valid) {
+        return { success: false, message: validation.message };
+      }
+
+      // Check version compatibility
+      if (backupData.version !== CURRENT_DATA_VERSION) {
+        console.warn(`Backup version ${backupData.version} differs from current ${CURRENT_DATA_VERSION}`);
+      }
+
+      // Import only Divido data (people, expenseGroups, expenses, settlements)
+      dispatch({ type: 'LOAD_DIVIDO_DATA', payload: {
+        people: backupData.people || [],
+        expenseGroups: backupData.expenseGroups || [],
+        expenses: backupData.expenses || [],
+        settlements: backupData.settlements || []
+      }});
+
+      // Save to storage
+      await Promise.all([
+        saveToStorage(STORAGE_KEYS.PEOPLE, backupData.people || []),
+        saveToStorage(STORAGE_KEYS.EXPENSE_GROUPS, backupData.expenseGroups || []),
+        saveToStorage(STORAGE_KEYS.EXPENSES, backupData.expenses || []),
+        saveToStorage(STORAGE_KEYS.SETTLEMENTS, backupData.settlements || [])
+      ]);
+
+      return { success: true, message: 'Divido data imported successfully!' };
+    } catch (error) {
+      console.error('Error importing Divido data:', error);
+      return { success: false, message: `Failed to import Divido data: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  };
+
   const convertAmount = (amount: number, fromCurrency: string, toCurrency: string) => {
     const fromRate = currencies.find(c => c.code === fromCurrency)?.rate || 1;
     const toRate = currencies.find(c => c.code === toCurrency)?.rate || 1;
@@ -761,7 +947,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           })}`;
         },
         exportData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), transactions: [], categories: [], accounts: [], currentCurrency: initialState.currentCurrency, people: [], expenseGroups: [], expenses: [], settlements: [] }),
-        importData: async () => ({ success: false, message: 'App is still loading' })
+        importData: async () => ({ success: false, message: 'App is still loading' }),
+        exportDividoData: async () => JSON.stringify({ version: CURRENT_DATA_VERSION, timestamp: new Date().toISOString(), type: 'divido', people: [], expenseGroups: [], expenses: [], settlements: [] }),
+        importDividoData: async () => ({ success: false, message: 'App is still loading' })
       }}>
         {children}
       </AppContext.Provider>
@@ -776,7 +964,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       convertAmount,
       formatCurrency,
       exportData,
-      importData
+      importData,
+      exportDividoData,
+      importDividoData
     }}>
       {children}
     </AppContext.Provider>

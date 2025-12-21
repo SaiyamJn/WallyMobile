@@ -29,6 +29,8 @@ npm start
 - Track transaction history with detailed views
 - Support for multiple currencies (INR default)
 - Optional transaction descriptions
+- Edit and delete transactions
+- Filter by account, category, and date
 
 ### 🏦 **Account Management**
 - Create and manage multiple accounts
@@ -36,6 +38,8 @@ npm start
 - Add/remove money from accounts
 - Support for different account types (Trip, Savings, Investment, Other)
 - Visual account representation with icons and colors
+- Account-specific transaction filtering
+- Automatic account selection reset on deletion
 
 ### 📊 **Reports & Analytics**
 - Comprehensive financial reports
@@ -43,6 +47,16 @@ npm start
 - Income vs expense analysis
 - Category-wise spending breakdown
 - Monthly and yearly summaries
+- Account-specific reporting
+
+### 👥 **Divido - Expense Splitting**
+- Create expense groups with multiple people
+- Split expenses equally, by custom amounts, or by percentage
+- Track who paid and who owes what
+- Automatic debt calculation and simplification
+- Settlement tracking for group expenses
+- Manage people with custom avatars
+- Export/import Divido data separately from Wally data
 
 ### 🎨 **User Experience**
 - Beautiful dark theme interface with custom PNG icons
@@ -200,14 +214,22 @@ Wally/
 │   │   ├── Dashboard.tsx   # Main dashboard
 │   │   ├── Accounts.tsx    # Account management
 │   │   ├── Reports.tsx     # Analytics & reports
-│   │   └── ...
+│   │   ├── Divido.tsx      # Expense splitting app
+│   │   ├── ExpenseGroupDetail.tsx  # Group details
+│   │   └── ...             # Other components
 │   ├── contexts/           # React Context providers
 │   │   └── AppContext.tsx  # Main app state
 │   ├── hooks/              # Custom React hooks
 │   ├── types/              # TypeScript type definitions
-│   └── styles/             # Global styles
+│   ├── utils/              # Utility functions
+│   │   ├── transactionUtils.ts
+│   │   ├── dividoUtils.ts
+│   │   └── iconUtils.ts
+│   └── constants/          # App constants
+│       └── iconSizes.ts
 ├── assets/                 # Images and icons
 │   └── icons/             # Custom PNG icon assets
+│       └── divido/        # Divido-specific icons
 ├── app.json               # Expo configuration
 ├── eas.json              # EAS build configuration
 ├── package.json          # Dependencies
@@ -222,6 +244,9 @@ Wally/
 - Quick access to add transactions
 - Account balance summaries
 - Recent transaction list
+- Month selector for historical data
+- Account filter for account-specific views
+- Automatic account selection reset on deletion
 
 ### **Transactions**
 - Complete transaction history
@@ -246,8 +271,16 @@ Wally/
 - **Secure Data Export**: Export backups with full data validation
 - **Secure Data Import**: Import only valid Wally backup files with comprehensive validation
 - App information and statistics
-- Clear all data option
+- Clear all data option (separate options for Wally and Divido)
 - Category management
+
+### **Divido**
+- Expense group management
+- People management with custom avatars
+- Expense splitting (equal, custom, percentage)
+- Debt calculation and settlement tracking
+- Separate data export/import from Wally
+- Group and people management modals
 
 ## 🔒 **Data Security & Validation**
 
@@ -321,7 +354,36 @@ If you have any questions or need help, please:
 
 ## ✨ **Recent Updates**
 
-### **v4.1.2 - Account Selection in Reports**
+### **v5.0.0 - Divido: Expense Splitting App**
+- ✅ **Complete Divido Integration**: Full-featured expense splitting application within Wally
+- ✅ **Expense Groups**: Create and manage expense groups with multiple people
+- ✅ **Flexible Expense Splitting**: Split expenses equally, by custom amounts, or by percentage
+- ✅ **Automatic Debt Calculation**: Smart algorithm calculates who owes what to whom
+- ✅ **Debt Simplification**: Minimizes number of transactions needed to settle all debts
+- ✅ **Settlement Tracking**: Track and mark debts as settled within groups
+- ✅ **People Management**: Add, edit, and delete people with custom avatars
+- ✅ **Avatar System**: 11 custom avatars (av0-av10) for person selection
+- ✅ **Separate Data Management**: Divido data (people, groups, expenses, settlements) stored separately from Wally data
+- ✅ **Export/Import Divido Data**: Independent backup and restore functionality for Divido
+- ✅ **Dedicated Navigation**: Custom bottom navigation for Divido (Home, People, Settings)
+- ✅ **Group Details View**: Comprehensive view showing expenses, balances, and debts per group
+- ✅ **Expense Management**: Add, edit, and delete expenses within groups
+- ✅ **Category-based Expense View**: View expenses grouped by category with visual breakdowns
+- ✅ **Balance Visualization**: See individual balances and simplified debts for each person
+- ✅ **Modern UI**: Consistent design language with Wally, featuring custom icons and smooth animations
+- ✅ **Settings Integration**: Manage groups and people through dedicated modals in Divido settings
+- ✅ **Empty States**: Helpful empty state messages with appropriate icons for groups and people
+- ✅ **Form State Persistence**: Smart form state management prevents data loss during navigation
+
+### **v4.1.2 - Bug Fixes & Code Quality**
+- ✅ **Dashboard Account Deletion Fix**: Fixed bug where deleting a selected account in Dashboard would cause incorrect balance calculations. The selected account ID now automatically resets when the account is deleted.
+- ✅ **Code Cleanup**: Removed unused imports, variables, and functions across the entire codebase
+- ✅ **React Hooks Optimization**: Replaced `React.useState/useEffect/useRef/useCallback` with direct imports for better performance
+- ✅ **Removed Console Logs**: Cleaned up debug console.log statements (kept error/warn logs for debugging)
+- ✅ **Storage Keys Cleanup**: Removed unused storage keys (SCREEN, NAVIGATION, SELECTED_* IDs) that were no longer needed after app state simplification
+- ✅ **Unused Function Removal**: Removed unused `handleManagePeople` function from Divido component
+- ✅ **Import Cleanup**: Removed unused `getEmojiFallback` imports from Accounts and CategoryManagement components
+- ✅ **Account Selection in Reports**: Added account filtering support in Reports
 
 ### **v4.1.1 - Security & Code Quality Improvements**
 - ✅ **Import Validation**: Added comprehensive validation to ensure only valid Wally backup files are accepted

@@ -5,7 +5,7 @@ import { Category } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
-import { categoryIconOptions, getEmojiFallback } from '../utils/iconUtils';
+import { categoryIconOptions } from '../utils/iconUtils';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 export function CategoryManagement() {
@@ -16,7 +16,7 @@ export function CategoryManagement() {
     name: '',
     type: 'expense' as 'income' | 'expense',
     icon: 'card',
-    color: '#3b82f6'
+    color: '#ed9149'
   });
 
   const expenseCategories = state.categories.filter(c => c.type === 'expense');
@@ -40,7 +40,7 @@ export function CategoryManagement() {
     };
 
     dispatch({ type: 'ADD_CATEGORY', payload: category });
-    setNewCategory({ name: '', type: 'expense', icon: 'card', color: '#3b82f6' });
+    setNewCategory({ name: '', type: 'expense', icon: 'card', color: '#ed9149' });
     setShowAddForm(false);
   };
 
@@ -385,8 +385,6 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 12,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
     minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',

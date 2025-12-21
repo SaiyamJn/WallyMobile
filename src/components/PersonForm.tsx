@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 import { Person } from '../types';
-import { accountIconOptions } from '../utils/iconUtils';
+import { avatarOptions, getAvatarSource } from '../utils/iconUtils';
 
 const colors = [
   '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
@@ -24,7 +24,7 @@ export function PersonForm() {
 
   const [formData, setFormData] = useState({
     name: existingPerson?.name || '',
-    icon: (existingPerson?.icon || 'card') as string,
+    icon: (existingPerson?.icon || 'av0') as string,
     color: existingPerson?.color || colors[0]
   });
 
@@ -103,24 +103,30 @@ export function PersonForm() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Icon</Text>
+          <Text style={styles.label}>Avatar</Text>
           <ScrollView 
             horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.iconScroll}
-            contentContainerStyle={styles.iconContainer}
+            showsHorizontalScrollIndicator={true}
+            style={styles.avatarScroll}
+            contentContainerStyle={styles.avatarContainer}
+            bounces={false}
+            alwaysBounceHorizontal={false}
           >
-            {accountIconOptions.map(iconName => (
+            {avatarOptions.map(avatarName => (
               <TouchableOpacity
-                key={iconName}
+                key={avatarName}
                 style={[
-                  styles.iconOption,
-                  formData.icon === iconName && styles.iconOptionSelected
+                  styles.avatarOption,
+                  formData.icon === avatarName && styles.avatarOptionSelected
                 ]}
-                onPress={() => setFormData(prev => ({ ...prev, icon: iconName }))}
+                onPress={() => setFormData(prev => ({ ...prev, icon: avatarName }))}
                 activeOpacity={0.7}
               >
-                <Icon name={iconName} size={ICON_SIZES.SM} />
+                <Image
+                  source={getAvatarSource(avatarName)}
+                  style={styles.avatarImage}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -218,26 +224,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333333',
   },
-  iconScroll: {
+  avatarScroll: {
     marginHorizontal: -20,
   },
-  iconContainer: {
+  avatarContainer: {
     paddingHorizontal: 20,
+    paddingVertical: 4,
     gap: 12,
+    alignItems: 'center',
   },
-  iconOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  avatarOption: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#202020ff',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
+    overflow: 'hidden',
   },
-  iconOptionSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#3b82f620',
+  avatarOptionSelected: {
+    borderColor: '#ec9706',
+    backgroundColor: '#ec970620',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   colorContainer: {
     flexDirection: 'row',
@@ -258,7 +271,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.1 }],
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

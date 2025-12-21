@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { Icon } from './ui/Icon';
@@ -11,9 +11,9 @@ interface SideMenuProps {
 
 export function SideMenu({ visible, onClose }: SideMenuProps) {
   const { state, dispatch } = useApp();
-  const slideAnim = React.useRef(new Animated.Value(-300)).current;
+  const slideAnim = useRef(new Animated.Value(-300)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -54,7 +54,7 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
     { 
       screen: 'divido', 
       label: 'Divido', 
-      icon: 'card',
+      icon: 'divido',
       description: 'Split expenses with friends',
       isActive: isDividoActive
     },
@@ -87,40 +87,52 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
           </View>
 
           <View style={styles.menuContent}>
-            {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.screen}
-                style={[
-                  styles.menuItem,
-                  item.isActive && styles.menuItemActive
-                ]}
-                onPress={() => handleMenuItemPress(item.screen)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.menuItemLeft}>
-                  <View style={[
-                    styles.menuItemIcon,
-                    item.isActive && styles.menuItemIconActive
-                  ]}>
-                    <Icon name={item.icon as any} size={ICON_SIZES.SM} />
+            {menuItems.map((item) => {
+              const activeColor = item.screen === 'dashboard' ? '#10b981' : '#ec9706';
+              return (
+                <TouchableOpacity
+                  key={item.screen}
+                  style={[
+                    styles.menuItem,
+                    item.isActive && [
+                      styles.menuItemActive,
+                      {
+                        backgroundColor: activeColor + '15',
+                        borderLeftColor: activeColor,
+                      }
+                    ]
+                  ]}
+                  onPress={() => handleMenuItemPress(item.screen)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.menuItemLeft}>
+                    <View style={styles.menuItemIconContainer}>
+                      <Icon 
+                        name={item.icon as any} 
+                        size={44} 
+                      />
+                    </View>
+                    <View style={styles.menuItemText}>
+                      <Text style={[
+                        styles.menuItemLabel,
+                        item.isActive && [
+                          styles.menuItemLabelActive,
+                          { color: activeColor }
+                        ]
+                      ]}>
+                        {item.label}
+                      </Text>
+                      {item.description && (
+                        <Text style={styles.menuItemDescription}>{item.description}</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.menuItemText}>
-                    <Text style={[
-                      styles.menuItemLabel,
-                      item.isActive && styles.menuItemLabelActive
-                    ]}>
-                      {item.label}
-                    </Text>
-                    {item.description && (
-                      <Text style={styles.menuItemDescription}>{item.description}</Text>
-                    )}
-                  </View>
-                </View>
-                {item.isActive && (
-                  <View style={styles.activeIndicator} />
-                )}
-              </TouchableOpacity>
-            ))}
+                  {item.isActive && (
+                    <View style={[styles.activeIndicator, { backgroundColor: activeColor }]} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Animated.View>
         <TouchableOpacity 
@@ -140,13 +152,17 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   menu: {
-    width: 280,
-    backgroundColor: '#1a1a1a',
-    borderRightWidth: 1,
-    borderRightColor: '#333333',
+    width: 320,
+    backgroundColor: '#111111',
+    borderRightWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 16,
     position: 'absolute',
     left: 0,
     top: 0,
@@ -157,36 +173,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    padding: 28,
+    paddingTop: 64,
+    paddingBottom: 28,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: '#1f1f1f',
   },
   menuTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#ffffff',
+    letterSpacing: -0.5,
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1f1f1f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
   menuContent: {
-    paddingTop: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
+    paddingHorizontal: 12,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    paddingVertical: 20,
+    marginVertical: 6,
+    borderRadius: 16,
     backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   menuItemActive: {
-    backgroundColor: '#3b82f620',
-    borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftWidth: 4,
+    marginLeft: 4,
+    borderColor: 'transparent',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -194,38 +223,37 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 16,
   },
-  menuItemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#202020ff',
+  menuItemIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  menuItemIconActive: {
-    backgroundColor: '#3b82f620',
+    backgroundColor: '#1a1a1a',
   },
   menuItemText: {
     flex: 1,
   },
   menuItemLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
     marginBottom: 4,
+    letterSpacing: -0.2,
   },
   menuItemDescription: {
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 13,
+    color: '#8b8b8b',
+    lineHeight: 18,
+    fontWeight: '400',
   },
   menuItemLabelActive: {
-    color: '#3b82f6',
     fontWeight: '700',
   },
   activeIndicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3b82f6',
   },
 });

@@ -5,6 +5,7 @@ import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
+import { PersonAvatar } from './ui/PersonAvatar';
 import { ICON_SIZES } from '../constants/iconSizes';
 import { Expense, Split } from '../types';
 
@@ -280,7 +281,7 @@ export function ExpenseForm() {
                 activeOpacity={0.7}
               >
                 <View style={[styles.personIcon, { backgroundColor: person.color + '20' }]}>
-                  <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                  <PersonAvatar icon={person.icon} size={32} />
                 </View>
                 <Text style={styles.personName}>{person.name}</Text>
               </TouchableOpacity>
@@ -353,7 +354,7 @@ export function ExpenseForm() {
                 >
                   <View style={styles.participantLeft}>
                     <View style={[styles.personIcon, { backgroundColor: person.color + '20' }]}>
-                      <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                      <PersonAvatar icon={person.icon} size={32} />
                     </View>
                     <Text style={styles.personName}>{person.name}</Text>
                   </View>
@@ -380,7 +381,7 @@ export function ExpenseForm() {
                     <View key={split.personId} style={styles.splitItem}>
                       <View style={styles.splitLeft}>
                         <View style={[styles.personIcon, { backgroundColor: person?.color + '20' }]}>
-                          <Icon name={person?.icon as any || 'default'} size={ICON_SIZES.SM} />
+                          <PersonAvatar icon={person?.icon || 'av0'} size={32} />
                         </View>
                         <Text style={styles.personName}>{person?.name || 'Unknown'}</Text>
                       </View>
@@ -556,8 +557,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   personOptionSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#3b82f620',
+    borderColor: '#ec9706',
+    backgroundColor: '#ec970620',
   },
   personIcon: {
     width: 32,
@@ -585,7 +586,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   splitTypeOptionSelected: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
   },
   splitTypeText: {
     fontSize: 14,
@@ -683,7 +684,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

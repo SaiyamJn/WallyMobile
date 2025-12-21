@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDate, getMonthYearString, isTransactionInMonth, isTransactionBeforeMonth } from '../utils/transactionUtils';
@@ -17,6 +17,13 @@ export function Dashboard() {
   
   // Account selector state
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  // Reset selectedAccountId if the selected account is deleted
+  useEffect(() => {
+    if (selectedAccountId && !state.accounts.find(a => a.id === selectedAccountId)) {
+      setSelectedAccountId(null);
+    }
+  }, [state.accounts, selectedAccountId]);
 
   const currentCurrency = state.currentCurrency;
 
@@ -139,12 +146,14 @@ export function Dashboard() {
           >
             <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
-          <Image
-            source={require('../../assets/wallet.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.appName}>Wally</Text>
+          <View style={styles.headerCenter}>
+            <Image
+              source={require('../../assets/wallet.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appName}>Wally</Text>
+          </View>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -312,7 +321,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
-    gap: 16,
   },
   menuButton: {
     padding: 8,
@@ -323,6 +331,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 12,
   },
   headerSpacer: {
     width: 40,

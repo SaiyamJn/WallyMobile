@@ -172,7 +172,7 @@ export function Reports() {
     {
       name: 'Transport',
       population: 50,
-      color: '#3b82f6',
+      color: '#ed9149',
       legendFontColor: '#ffffff',
       legendFontSize: 12,
     }
@@ -1034,7 +1034,7 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   calendarDaySelected: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ed9149',
     borderWidth: 1,
     borderColor: '#2563eb',
   },

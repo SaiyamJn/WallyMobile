@@ -230,7 +230,7 @@ export function TransactionsList() {
             <View style={styles.dateGroup}>
               <View style={[styles.transactionItem, styles.carryForwardItem]}>
                 <View style={styles.transactionLeft}>
-                  <View style={[styles.categoryIconContainer, { backgroundColor: '#3b82f620' }]}>
+                  <View style={[styles.categoryIconContainer, { backgroundColor: '#ed914920' }]}>
                     <Icon name="balance" size={ICON_SIZES.TRANSACTION} />
                   </View>
                   <View style={styles.transactionInfo}>
@@ -498,8 +498,6 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 6,
-    backgroundColor: '#ef4444',
-    borderRadius: 4,
     minWidth: 30,
     height: 30,
     alignItems: 'center',

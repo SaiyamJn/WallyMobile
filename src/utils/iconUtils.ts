@@ -133,6 +133,11 @@ export const iconAssets = {
   
   // Default icons
   'default': require('../../assets/icons/default.png'),
+  
+  // Divido icon
+  'divido': require('../../assets/icons/divido/divido.png'),
+  'people': require('../../assets/icons/divido/people.png'),
+  'groups': require('../../assets/icons/divido/groups.png'),
 } as const;
 
 export type IconName = keyof typeof iconAssets;
@@ -192,3 +197,41 @@ export const defaultCategoryIcons: Record<string, IconName> = {
   'Investment': 'chart',
   'Other Income': 'card',
 };
+
+// Avatar utilities for Divido
+export const avatarAssets = {
+  'av0': require('../../assets/icons/divido/av0.png'),
+  'av1': require('../../assets/icons/divido/av1.png'),
+  'av2': require('../../assets/icons/divido/av2.png'),
+  'av3': require('../../assets/icons/divido/av3.png'),
+  'av4': require('../../assets/icons/divido/av4.png'),
+  'av5': require('../../assets/icons/divido/av5.png'),
+  'av6': require('../../assets/icons/divido/av6.png'),
+  'av7': require('../../assets/icons/divido/av7.png'),
+  'av8': require('../../assets/icons/divido/av8.png'),
+  'av9': require('../../assets/icons/divido/av9.png'),
+  'av10': require('../../assets/icons/divido/av10.png'),
+} as const;
+
+export type AvatarName = keyof typeof avatarAssets;
+
+// Get avatar source by name
+export const getAvatarSource = (avatarName: AvatarName): ImageSourcePropType => {
+  try {
+    return avatarAssets[avatarName];
+  } catch (error) {
+    console.warn(`Failed to get avatar source for ${avatarName}:`, error);
+    // Return default avatar if the requested one fails
+    return avatarAssets['av0'];
+  }
+};
+
+// Check if string is an avatar name
+export const isAvatar = (iconName: string): iconName is AvatarName => {
+  return iconName in avatarAssets;
+};
+
+// Avatar options for person selection
+export const avatarOptions: AvatarName[] = [
+  'av0', 'av1', 'av2', 'av3', 'av4', 'av5', 'av6', 'av7', 'av8', 'av9', 'av10'
+];

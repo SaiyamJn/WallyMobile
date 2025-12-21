@@ -12,6 +12,8 @@ import { Reports } from './src/components/Reports';
 import { Settings } from './src/components/Settings';
 import { Accounts } from './src/components/Accounts';
 import { BottomNavigation } from './src/components/BottomNavigation';
+import { DividoBottomNavigation } from './src/components/DividoBottomNavigation';
+import { DividoSettings } from './src/components/DividoSettings';
 import { CategoryTransactions } from './src/components/CategoryTransactions';
 import { Divido } from './src/components/Divido';
 import { ExpenseGroupDetail } from './src/components/ExpenseGroupDetail';
@@ -97,6 +99,8 @@ function AppContent() {
         return <Reports />;
       case 'settings':
         return <Settings />;
+      case 'divido-settings':
+        return <DividoSettings />;
       case 'category-transactions':
         return <CategoryTransactions 
           categoryName={state.selectedCategory || ''}
@@ -155,8 +159,11 @@ function AppContent() {
               {renderCurrentScreen()}
             </View>
           </KeyboardAvoidingView>
-          {!['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense'].includes(state.currentScreen) && (
+          {!['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
             <BottomNavigation />
+          )}
+          {['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
+            <DividoBottomNavigation />
           )}
         </View>
       )}

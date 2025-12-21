@@ -1,11 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
+import { PersonAvatar } from './ui/PersonAvatar';
 import { ICON_SIZES } from '../constants/iconSizes';
 import { ExpenseGroup } from '../types';
+
+// Store form data outside component to persist across unmounts
+let preservedFormData: {
+  name: string;
+  description: string;
+  members: string[];
+} | null = null;
 
 export function ExpenseGroupForm() {
   const { state, dispatch } = useApp();
@@ -13,21 +21,14 @@ export function ExpenseGroupForm() {
   
   const isEditing = state.selectedExpenseGroupId !== null;
 
-  // Use a ref to preserve form data when navigating away
-  const formDataRef = useRef<{
-    name: string;
-    description: string;
-    members: string[];
-  } | null>(null);
-
-  // Initialize form data only once
+  // Initialize form data
   const getInitialFormData = () => {
-    // If we have preserved data, use it
-    if (formDataRef.current) {
-      return formDataRef.current;
+    // If we have preserved data, use it (for new groups)
+    if (!isEditing && preservedFormData) {
+      return preservedFormData;
     }
     
-    // Otherwise, load from group if editing
+    // Load from group if editing
     if (isEditing && state.selectedExpenseGroupId) {
       const group = state.expenseGroups.find(g => g.id === state.selectedExpenseGroupId);
       if (group) {
@@ -44,14 +45,18 @@ export function ExpenseGroupForm() {
 
   const [formData, setFormData] = useState(getInitialFormData());
 
-  // Update ref whenever formData changes
+  // Preserve form data whenever it changes (for new groups only)
   useEffect(() => {
-    formDataRef.current = formData;
-  }, [formData]);
+    if (!isEditing) {
+      preservedFormData = formData;
+    }
+  }, [formData, isEditing]);
 
   // Update form when people are added (to show new people in the list)
   // But preserve user's input for name and description
   useEffect(() => {
+    // Only handle updates when editing an existing group
+    // For new groups, we don't need to update anything - the form data persists naturally
     if (isEditing && state.selectedExpenseGroupId) {
       const currentGroup = state.expenseGroups.find(g => g.id === state.selectedExpenseGroupId);
       
@@ -75,13 +80,11 @@ export function ExpenseGroupForm() {
           }));
         }
       }
-    } else if (!isEditing) {
-      // When creating a new group, restore from ref if we navigated back
-      if (formDataRef.current) {
-        setFormData(formDataRef.current);
-      }
     }
-  }, [state.people.length, state.selectedExpenseGroupId]);
+    // For new groups (!isEditing), we don't touch the form data at all
+    // The form data is already preserved via preservedFormData and useState
+    // We only need to update members when editing an existing group
+  }, [state.people.length, state.selectedExpenseGroupId, isEditing]);
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
@@ -121,9 +124,13 @@ export function ExpenseGroupForm() {
       dispatch({ type: 'ADD_EXPENSE_GROUP', payload: newGroup });
     }
 
-    // Clear form data ref when submitting
-    formDataRef.current = { name: '', description: '', members: [] };
-    dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
+    // Clear preserved form data when submitting
+    preservedFormData = null;
+    // Only clear selectedExpenseGroupId for new groups
+    // For editing, keep it so we can navigate back to detail screen
+    if (!isEditing) {
+      dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
+    }
     dispatch({ type: 'GO_BACK' });
   };
 
@@ -151,8 +158,12 @@ export function ExpenseGroupForm() {
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => {
-            formDataRef.current = { name: '', description: '', members: [] };
-            dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
+            // Only clear preserved data for new groups
+            if (!isEditing) {
+              preservedFormData = null;
+              dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
+            }
+            // For editing, keep the selectedExpenseGroupId so we can navigate back to detail
             dispatch({ type: 'GO_BACK' });
           }}
           style={styles.backButton}
@@ -202,6 +213,7 @@ export function ExpenseGroupForm() {
               <Text style={styles.addButtonText}>Add Person</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.helperText}>(Select all the people you want to add)</Text>
           
           {state.people.length === 0 ? (
             <View style={styles.emptyPeople}>
@@ -231,7 +243,7 @@ export function ExpenseGroupForm() {
                   >
                     <View style={styles.memberLeft}>
                       <View style={[styles.memberIcon, { backgroundColor: person.color + '20' }]}>
-                        <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                        <PersonAvatar icon={person.icon} size={40} />
                       </View>
                       <Text style={styles.memberName}>{person.name}</Text>
                     </View>
@@ -306,6 +318,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 8,
   },
+  helperText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 8,
+    marginTop: -4,
+  },
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -328,7 +346,7 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -387,7 +405,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyPeopleButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -398,7 +416,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

@@ -34,7 +34,7 @@ export function AddTransactionForm() {
   const [newCategory, setNewCategory] = useState({
     name: '',
     icon: 'card' as string,
-    color: '#3b82f6'
+    color: '#ed9149'
   });
 
   // Refs for input fields
@@ -521,7 +521,7 @@ export function AddTransactionForm() {
                     setNewCategory({
                       name: '',
                       icon: 'card',
-                      color: '#3b82f6'
+                      color: '#ed9149'
                     });
                     setShowAddCategoryModal(true);
                   }}
@@ -670,7 +670,7 @@ export function AddTransactionForm() {
                     handleInputChange('category', category.name);
                     setShowAddCategoryModal(false);
                     setShowCategoryModal(false);
-                    setNewCategory({ name: '', icon: 'card', color: '#3b82f6' });
+                    setNewCategory({ name: '', icon: 'card', color: '#ed9149' });
                     
                     setTimeout(() => {
                       focusNextField('category');

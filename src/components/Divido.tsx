@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
@@ -25,10 +25,6 @@ export function Divido() {
     });
   };
 
-  const handleManagePeople = () => {
-    dispatch({ type: 'SET_SCREEN', payload: 'people-list' });
-  };
-
   // Calculate total stats
   const totalGroups = state.expenseGroups.length;
   const totalPeople = state.people.length;
@@ -50,36 +46,31 @@ export function Divido() {
   });
 
   return (
-    <ScrollView 
-      style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      bounces={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => setShowSideMenu(true)}
-        >
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Divido</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={handleManagePeople}
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setShowSideMenu(true)}
           >
-            <Icon name="card" size={ICON_SIZES.ACTION} color="#ffffff" />
+            <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={handleAddGroup}
-          >
-            <Icon name="add" size={ICON_SIZES.ACTION} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Image
+              source={require('../../assets/icons/divido/divido.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appName}>Divido</Text>
+          </View>
+          <View style={styles.menuButton} />
         </View>
-      </View>
 
       {/* Side Menu */}
       <SideMenu 
@@ -129,7 +120,7 @@ export function Divido() {
         <Text style={styles.sectionTitle}>Expense Groups</Text>
         {state.expenseGroups.length === 0 ? (
           <View style={styles.emptyState}>
-            <Icon name="chart" size={ICON_SIZES.EMPTY_STATE} />
+            <Icon name="groups" size={ICON_SIZES.EMPTY_STATE} />
             <Text style={styles.emptyTitle}>No groups yet</Text>
             <Text style={styles.emptyText}>
               Create your first expense group to start splitting bills
@@ -160,7 +151,7 @@ export function Divido() {
                 <View style={styles.groupCardHeader}>
                   <View style={styles.groupCardLeft}>
                     <View style={[styles.groupIconContainer, isSettled && styles.groupIconSettled]}>
-                      <Icon name="card" size={ICON_SIZES.SM} />
+                      <Icon name="groups" size={ICON_SIZES.SM} />
                     </View>
                     <View style={styles.groupInfo}>
                       <View style={styles.groupNameRow}>
@@ -174,7 +165,7 @@ export function Divido() {
                       </View>
                       <View style={styles.groupMetaRow}>
                         <View style={styles.metaItem}>
-                          <Icon name="card" size={12} color="#9ca3af" />
+                          <Icon name="groups" size={12} color="#9ca3af" />
                           <Text style={styles.metaText}>{group.members.length} member{group.members.length !== 1 ? 's' : ''}</Text>
                         </View>
                         <View style={styles.metaItem}>
@@ -189,12 +180,12 @@ export function Divido() {
                       <Text style={styles.groupTotal}>{formatCurrency(totalGroupExpenses)}</Text>
                       {groupExpenses.length > 0 && (
                         <View style={styles.expenseIndicator}>
-                          <View style={[styles.expenseDot, { backgroundColor: isSettled ? '#10b981' : '#3b82f6' }]} />
+                          <View style={[styles.expenseDot, { backgroundColor: isSettled ? '#10b981' : '#ec9706' }]} />
                           <Text style={styles.expenseCount}>{groupExpenses.length}</Text>
                         </View>
                       )}
                     </View>
-                    <Icon name="forward" size={ICON_SIZES.SM} color="#9ca3af" />
+                    <Icon name="forward" size={ICON_SIZES.SM} color="#ffffff" />
                   </View>
                 </View>
                 
@@ -209,7 +200,7 @@ export function Divido() {
                             styles.expenseBarSegment,
                             { 
                               width: `${100 / Math.min(groupExpenses.length, 5)}%`,
-                              backgroundColor: isSettled ? '#10b981' : '#3b82f6'
+                              backgroundColor: isSettled ? '#10b981' : '#ec9706'
                             }
                           ]} 
                         />
@@ -245,10 +236,23 @@ export function Divido() {
         )}
       </View>
     </ScrollView>
+
+    {/* Floating Add Group Button */}
+    <TouchableOpacity
+      style={styles.floatingButton}
+      onPress={handleAddGroup}
+    >
+      <Icon name="add" size={ICON_SIZES.FLOATING} color="#ffffff" />
+    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   scrollView: {
     flex: 1,
     backgroundColor: '#000000',
@@ -261,8 +265,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   menuButton: {
@@ -275,21 +279,39 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    flex: 1,
-    marginLeft: 8,
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
   },
-  headerActions: {
+  headerCenter: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
     gap: 12,
   },
-  iconButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#202020ff',
+  appName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 120,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ec9706',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -362,7 +384,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: '#ec9706',
   },
   groupCardHeader: {
     flexDirection: 'row',
@@ -480,7 +502,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   expenseBarMore: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 20,
@@ -538,7 +560,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,

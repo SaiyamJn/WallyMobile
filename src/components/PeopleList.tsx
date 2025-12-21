@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
+import { PersonAvatar } from './ui/PersonAvatar';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 export function PeopleList() {
@@ -55,7 +56,7 @@ export function PeopleList() {
 
       {state.people.length === 0 ? (
         <View style={styles.emptyState}>
-          <Icon name="card" size={ICON_SIZES.EMPTY_STATE} />
+          <Icon name="people" size={ICON_SIZES.EMPTY_STATE} />
           <Text style={styles.emptyTitle}>No people yet</Text>
           <Text style={styles.emptyText}>
             Add people to start creating expense groups and splitting bills
@@ -74,7 +75,7 @@ export function PeopleList() {
             <View key={person.id} style={styles.personCard}>
               <View style={styles.personLeft}>
                 <View style={[styles.personIcon, { backgroundColor: person.color + '20' }]}>
-                  <Icon name={person.icon as any} size={ICON_SIZES.SM} />
+                  <PersonAvatar icon={person.icon} size={50} />
                 </View>
                 <View style={styles.personInfo}>
                   <Text style={styles.personName}>{person.name}</Text>
@@ -88,13 +89,13 @@ export function PeopleList() {
                   style={styles.actionButton}
                   onPress={() => handleEditPerson(person.id)}
                 >
-                  <Icon name="edit" size={ICON_SIZES.SM} color="#3b82f6" />
+                  <Icon name="edit" size={ICON_SIZES.LG} color="#ec9706" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleDeletePerson(person.id)}
                 >
-                  <Icon name="delete" size={ICON_SIZES.SM} color="#ef4444" />
+                  <Icon name="delete" size={ICON_SIZES.LG} color="#ef4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -188,7 +189,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
-    padding: 8,
+    padding: 12,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyState: {
     alignItems: 'center',
@@ -212,7 +217,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ec9706',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,

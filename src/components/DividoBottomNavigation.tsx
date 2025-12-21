@@ -6,26 +6,50 @@ import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 const navigationItems = [
-  { screen: 'dashboard' as Screen, icon: 'dashboard' },
-  { screen: 'transactions' as Screen, icon: 'transactions' },
-  { screen: 'accounts' as Screen, icon: 'accounts' },
-  { screen: 'reports' as Screen, icon: 'reports' },
-  { screen: 'settings' as Screen, icon: 'settings' },
+  { screen: 'divido' as Screen, icon: 'dashboard' },
+  { screen: 'people-list' as Screen, icon: 'people' },
+  { screen: 'divido-settings' as Screen, icon: 'settings' },
 ];
 
-export function BottomNavigation() {
+export function DividoBottomNavigation() {
   const { state, dispatch } = useApp();
+
+  // Determine if a screen is active (for Divido screens, consider divido as home)
+  const isScreenActive = (screen: Screen): boolean => {
+    if (screen === 'divido') {
+      // Home is active for divido and expense-group-detail screens
+      return ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'add-expense', 'edit-expense'].includes(state.currentScreen);
+    }
+    if (screen === 'people-list') {
+      // People is active for people-list, add-person, edit-person screens
+      return ['people-list', 'add-person', 'edit-person'].includes(state.currentScreen);
+    }
+    if (screen === 'divido-settings') {
+      return state.currentScreen === 'divido-settings';
+    }
+    return state.currentScreen === screen;
+  };
+
+  const handleNavigation = (screen: Screen) => {
+    if (screen === 'divido') {
+      // Clear any selections when going to home
+      dispatch({ type: 'SET_SELECTED_EXPENSE_GROUP', payload: null });
+      dispatch({ type: 'SET_SELECTED_EXPENSE', payload: null });
+      dispatch({ type: 'SET_SELECTED_PERSON', payload: null });
+    }
+    dispatch({ type: 'SET_SCREEN', payload: screen });
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.navigation}>
         {navigationItems.map(({ screen, icon }) => {
-          const isActive = state.currentScreen === screen;
+          const isActive = isScreenActive(screen);
           return (
             <TouchableOpacity
               key={screen}
               style={[styles.navButton, isActive && styles.navButtonActive]}
-              onPress={() => dispatch({ type: 'SET_SCREEN', payload: screen })}
+              onPress={() => handleNavigation(screen)}
             >
               <Icon 
                 name={icon} 

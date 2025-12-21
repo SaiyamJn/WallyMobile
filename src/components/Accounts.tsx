@@ -5,7 +5,7 @@ import { Account } from '../types';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
-import { accountIconOptions, getEmojiFallback } from '../utils/iconUtils';
+import { accountIconOptions } from '../utils/iconUtils';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 export function Accounts() {
@@ -17,7 +17,7 @@ export function Accounts() {
     type: 'trip' as 'trip' | 'savings' | 'investment' | 'other',
     description: '',
     icon: 'plane',
-    color: '#3b82f6' // Default color, not user-selectable
+    color: '#ed9149' // Default color, not user-selectable
   });
 
   const accountTypeOptions = [
@@ -47,7 +47,7 @@ export function Accounts() {
     };
 
     dispatch({ type: 'ADD_ACCOUNT', payload: account });
-    setNewAccount({ name: '', type: 'trip', description: '', icon: 'plane', color: '#3b82f6' });
+    setNewAccount({ name: '', type: 'trip', description: '', icon: 'plane', color: '#ed9149' });
     setShowAddForm(false);
   };
 
@@ -403,8 +403,6 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 8,
-    backgroundColor: '#ef4444',
-    borderRadius: 6,
     minWidth: 32,
     alignItems: 'center',
     justifyContent: 'center',

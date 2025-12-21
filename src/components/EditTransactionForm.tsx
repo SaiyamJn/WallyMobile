@@ -43,7 +43,7 @@ export function EditTransactionForm() {
   const [newCategory, setNewCategory] = useState({
     name: '',
     icon: 'card' as string,
-    color: '#3b82f6'
+    color: '#ed9149'
   });
 
   // Initialize form with transaction data
@@ -501,7 +501,7 @@ export function EditTransactionForm() {
                     setNewCategory({
                       name: '',
                       icon: 'card',
-                      color: '#3b82f6'
+                      color: '#ed9149'
                     });
                     setShowAddCategoryModal(true);
                   }}
@@ -647,7 +647,7 @@ export function EditTransactionForm() {
                     handleInputChange('category', category.name);
                     setShowAddCategoryModal(false);
                     setShowCategoryModal(false);
-                    setNewCategory({ name: '', icon: 'card', color: '#3b82f6' });
+                    setNewCategory({ name: '', icon: 'card', color: '#ed9149' });
                   }}
                 >
                   <Text style={styles.addCategorySaveButtonText}>Create</Text>
@@ -759,8 +759,6 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginTop: 20,
     padding: 10,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
   },
   errorContainer: {
     flex: 1,
