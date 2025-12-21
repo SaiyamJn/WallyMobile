@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform, ErrorUtils, TouchableOpacity } from 'react-native';
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import { ErrorBoundary } from './src/components/ui/ErrorBoundary';
 import { Dashboard } from './src/components/Dashboard';
@@ -60,13 +60,18 @@ function AppContent() {
   useEffect(() => {
     const preloadAssets = async () => {
       try {
-        // Preload wallet icon used in loading screen
-        require('./assets/wallet.png');
+        // Preload wallet icon used in loading screen - wrap in try-catch
+        try {
+          require('./assets/wallet.png');
+        } catch (assetError) {
+          console.warn('Asset preload failed, continuing anyway:', assetError);
+        }
         // Give a small delay to ensure assets are cached
         await new Promise(resolve => setTimeout(resolve, 300));
         setAssetsReady(true);
       } catch (error) {
         // Asset preload failed, continue anyway
+        console.warn('Asset preload error:', error);
         setAssetsReady(true);
       }
     };
@@ -215,11 +220,24 @@ function AppContent() {
   const LoadingScreen = () => (
     <View style={styles.loadingContainer}>
       <View style={styles.loadingContent}>
-        <Image 
-          source={require('./assets/wallet.png')} 
-          style={styles.appIcon}
-          resizeMode="contain"
-        />
+        {(() => {
+          try {
+            return (
+              <Image 
+                source={require('./assets/wallet.png')} 
+                style={styles.appIcon}
+                resizeMode="contain"
+              />
+            );
+          } catch (error) {
+            // If image fails to load, show a placeholder
+            return (
+              <View style={[styles.appIcon, { backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#ffffff', fontSize: 32, fontWeight: 'bold' }}>W</Text>
+              </View>
+            );
+          }
+        })()}
         <Text style={styles.appTitle}>Wally</Text>
         <Text style={styles.loadingText}>Loading your finances...</Text>
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -255,16 +273,121 @@ function AppContent() {
   );
 }
 
-export default function App() {
+// Minimal fallback component that doesn't depend on any context or imports
+function MinimalFallback() {
   return (
-    <ErrorBoundary>
-      <AppProvider>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
-      </AppProvider>
-    </ErrorBoundary>
+    <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
+        Wally
+      </Text>
+      <Text style={{ color: '#9ca3af', fontSize: 16, textAlign: 'center', marginBottom: 32 }}>
+        Initializing app...
+      </Text>
+      <ActivityIndicator size="large" color="#3b82f6" />
+    </View>
   );
+}
+
+// Wrapper component that safely initializes the app
+function SafeAppWrapper() {
+  const [hasError, setHasError] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string>('');
+
+  // Catch any errors during initialization
+  React.useEffect(() => {
+    const errorHandler = (error: Error) => {
+      console.error('Error in SafeAppWrapper:', error);
+      setHasError(true);
+      setErrorMessage(error.message || 'Unknown error');
+    };
+
+    // Set up error handler
+    if (typeof ErrorUtils !== 'undefined') {
+      const originalHandler = ErrorUtils.getGlobalHandler?.();
+      if (originalHandler) {
+        ErrorUtils.setGlobalHandler?.((error: Error, isFatal?: boolean) => {
+          errorHandler(error);
+          originalHandler(error, isFatal);
+        });
+      }
+    }
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
+  const handleClearAndRestart = async () => {
+    try {
+      // Clear all storage - use dynamic import to avoid issues
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        await AsyncStorage.clear();
+        console.log('Storage cleared, restarting app...');
+      } catch (storageError) {
+        console.error('Error clearing storage:', storageError);
+        // Continue anyway
+      }
+      
+      // Reset error state
+      setHasError(false);
+      setErrorMessage('');
+    } catch (error) {
+      console.error('Error in handleClearAndRestart:', error);
+      // Still try to reset
+      setHasError(false);
+      setErrorMessage('');
+    }
+  };
+
+  if (hasError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
+          Error
+        </Text>
+        <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginBottom: 32 }}>
+          {errorMessage}
+        </Text>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#ef4444', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, minWidth: 200, marginBottom: 12 }}
+          onPress={handleClearAndRestart}
+        >
+          <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+            Clear Data & Restart
+          </Text>
+        </TouchableOpacity>
+        <Text style={{ color: '#6b7280', fontSize: 12, textAlign: 'center' }}>
+          This will clear all app data and restart
+        </Text>
+      </View>
+    );
+  }
+
+  try {
+    return (
+      <ErrorBoundary>
+        <AppProvider>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </AppProvider>
+      </ErrorBoundary>
+    );
+  } catch (error) {
+    console.error('Error rendering app:', error);
+    return <MinimalFallback />;
+  }
+}
+
+export default function App() {
+  // Wrap everything in a try-catch at the top level
+  try {
+    return <SafeAppWrapper />;
+  } catch (error) {
+    console.error('Fatal error in App component:', error);
+    return <MinimalFallback />;
+  }
 }
 
 const styles = StyleSheet.create({

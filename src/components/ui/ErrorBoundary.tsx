@@ -38,10 +38,19 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  handleReset = () => {
+  handleReset = async () => {
     try {
+      // Try to clear storage before resetting to prevent the same error
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.clear();
+        console.log('Storage cleared successfully');
+      } catch (clearError) {
+        console.error('Error clearing storage:', clearError);
+        // Continue anyway
+      }
+      
       // Reset error state - this will cause the component tree to re-render
-      // The AppProvider will handle any corrupted data on its own initialization
       this.setState({
         hasError: false,
         error: null,
@@ -59,6 +68,34 @@ export class ErrorBoundary extends Component<Props, State> {
       } catch (resetError) {
         console.error('Critical error in handleReset, cannot recover:', resetError);
       }
+    }
+  };
+
+  handleClearAndReset = async () => {
+    try {
+      // Clear all storage
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.clear();
+        console.log('Storage cleared successfully');
+      } catch (clearError) {
+        console.error('Error clearing storage:', clearError);
+      }
+      
+      // Reset error state
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null
+      });
+    } catch (error) {
+      console.error('Error in handleClearAndReset:', error);
+      // Still try to reset
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null
+      });
     }
   };
 
@@ -89,6 +126,9 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
             <TouchableOpacity style={styles.button} onPress={this.handleReset}>
               <Text style={styles.buttonText}>Try Again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.button, styles.clearButton]} onPress={this.handleClearAndReset}>
+              <Text style={styles.buttonText}>Clear Data & Restart</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -151,6 +191,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     minWidth: 200,
+    marginBottom: 12,
+  },
+  clearButton: {
+    backgroundColor: '#ef4444',
   },
   buttonText: {
     color: '#ffffff',

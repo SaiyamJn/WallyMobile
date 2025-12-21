@@ -548,18 +548,38 @@ const AppContext = createContext<{
 } | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  // Hooks must be called unconditionally
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  
+  // Wrap reducer dispatch to catch any errors
+  const safeDispatch = React.useCallback((action: AppAction) => {
+    try {
+      dispatch(action);
+    } catch (error) {
+      console.error('Error in reducer dispatch:', error);
+      // Don't crash, just log the error
+    }
+  }, []);
 
   // Load data from storage on app start
   useEffect(() => {
+    let loadingTimeout: NodeJS.Timeout | null = null;
+    
+    // Set a timeout to prevent infinite loading
+    loadingTimeout = setTimeout(() => {
+      console.warn('Data loading timeout, forcing app to load with defaults');
+      setIsLoaded(true);
+    }, 10000); // 10 second timeout
+
     const loadData = async () => {
       try {
         setHasError(false);
         // Ensure AsyncStorage is available
         if (!AsyncStorage) {
           console.error('AsyncStorage is not available');
+          clearTimeout(loadingTimeout);
           setIsLoaded(true);
           return;
         }
@@ -680,22 +700,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }});
         }
         
+        if (loadingTimeout) clearTimeout(loadingTimeout);
         setIsLoaded(true);
       } catch (error) {
         console.error('Critical error loading data:', error);
+        if (loadingTimeout) clearTimeout(loadingTimeout);
         setHasError(true);
         
         // On error, start with clean state and try to clear any corrupted storage
         try {
           // Attempt to clear all storage to prevent future issues
           await clearAllStorage();
+          console.log('Storage cleared due to error');
         } catch (clearError) {
           console.error('Error clearing storage after failure:', clearError);
+          // Try to clear everything as last resort
+          try {
+            await AsyncStorage.clear();
+          } catch (finalClearError) {
+            console.error('Final storage clear failed:', finalClearError);
+          }
         }
         
         // Start with clean state - ensure this always succeeds
         try {
-          dispatch({ type: 'LOAD_DATA', payload: {
+          safeDispatch({ type: 'LOAD_DATA', payload: {
             transactions: [],
             categories: defaultCategories,
             accounts: [],
@@ -721,9 +750,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loadData();
     } catch (error) {
       console.error('Fatal error in loadData initialization:', error);
+      if (loadingTimeout) clearTimeout(loadingTimeout);
       setHasError(true);
       setIsLoaded(true); // Always set loaded to true so app can render
+      
+      // Try to clear storage on fatal error
+      clearAllStorage().catch((clearError) => {
+        console.error('Error clearing storage on fatal error:', clearError);
+      });
     }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
   }, []);
 
   // Save data to storage whenever state changes
@@ -1025,8 +1065,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return usdAmount * toRate;
   };
 
-  const formatCurrency = (amount: number, currency = state.currentCurrency) => {
-    return `${currency.symbol}${amount.toLocaleString('en-US', { 
+  const formatCurrency = (amount: number, currency = (state?.currentCurrency || initialState.currentCurrency)) => {
+    const safeCurrency = currency || initialState.currentCurrency;
+    return `${safeCurrency.symbol}${amount.toLocaleString('en-US', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 2 
     })}`;
@@ -1035,7 +1076,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Always provide a valid context, even during loading or errors
   // This ensures useApp() never throws "must be used within AppProvider"
   const safeState = hasError ? initialState : (state || initialState);
-  const safeDispatch = hasError ? (() => {}) : dispatch;
+  const safeDispatchFn = hasError ? (() => {}) : safeDispatch;
   const safeCurrency = safeState.currentCurrency || initialState.currentCurrency;
   
   const contextValue = !isLoaded ? {
@@ -1060,7 +1101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     importDividoData: async () => ({ success: false, message: 'App is still loading' })
   } : {
     state: safeState,
-    dispatch: safeDispatch,
+    dispatch: safeDispatchFn,
     currencies,
     convertAmount,
     formatCurrency: (amount: number, currency = safeCurrency) => {
