@@ -122,48 +122,92 @@ function AppContent() {
       return <Dashboard />;
     }
     
-    switch (state.currentScreen) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'transactions':
-        return <TransactionsList />;
-      case 'add-transaction':
-        return <AddTransactionForm />;
-      case 'edit-transaction':
-        return <EditTransactionForm />;
-      case 'categories':
-        return <CategoryManagement />;
-      case 'accounts':
-        return <Accounts />;
-      case 'reports':
-        return <Reports />;
-      case 'settings':
-        return <Settings />;
-      case 'divido-settings':
-        return <DividoSettings />;
-      case 'category-transactions':
-        return <CategoryTransactions 
-          categoryName={state.selectedCategory || ''}
-          onBack={() => dispatch({ type: 'GO_BACK' })}
-        />;
-      // Divido screens
-      case 'divido':
-        return <Divido />;
-      case 'expense-group-detail':
-        return <ExpenseGroupDetail />;
-      case 'add-expense-group':
-      case 'edit-expense-group':
-        return <ExpenseGroupForm />;
-      case 'people-list':
-        return <PeopleList />;
-      case 'add-person':
-      case 'edit-person':
-        return <PersonForm />;
-      case 'add-expense':
-      case 'edit-expense':
-        return <ExpenseForm />;
-      default:
-        return <Dashboard />;
+    // Validate screen and required data before rendering
+    // This prevents crashes from invalid screen states
+    const currentScreen = state.currentScreen;
+    
+    // Screens that require specific data - validate before rendering
+    if (currentScreen === 'edit-transaction' && !state.selectedTransactionId) {
+      console.warn('edit-transaction screen requires selectedTransactionId, redirecting to dashboard');
+      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
+      return <Dashboard />;
+    }
+    
+    if (currentScreen === 'expense-group-detail' && !state.selectedExpenseGroupId) {
+      console.warn('expense-group-detail screen requires selectedExpenseGroupId, redirecting to divido');
+      dispatch({ type: 'SET_SCREEN', payload: 'divido' });
+      return <Divido />;
+    }
+    
+    if (currentScreen === 'edit-expense' && !state.selectedExpenseId) {
+      console.warn('edit-expense screen requires selectedExpenseId, redirecting to divido');
+      dispatch({ type: 'SET_SCREEN', payload: 'divido' });
+      return <Divido />;
+    }
+    
+    if (currentScreen === 'edit-person' && !state.selectedPersonId) {
+      console.warn('edit-person screen requires selectedPersonId, redirecting to people-list');
+      dispatch({ type: 'SET_SCREEN', payload: 'people-list' });
+      return <PeopleList />;
+    }
+    
+    if (currentScreen === 'category-transactions' && !state.selectedCategory) {
+      console.warn('category-transactions screen requires selectedCategory, redirecting to dashboard');
+      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
+      return <Dashboard />;
+    }
+    
+    try {
+      switch (currentScreen) {
+        case 'dashboard':
+          return <Dashboard />;
+        case 'transactions':
+          return <TransactionsList />;
+        case 'add-transaction':
+          return <AddTransactionForm />;
+        case 'edit-transaction':
+          return <EditTransactionForm />;
+        case 'categories':
+          return <CategoryManagement />;
+        case 'accounts':
+          return <Accounts />;
+        case 'reports':
+          return <Reports />;
+        case 'settings':
+          return <Settings />;
+        case 'divido-settings':
+          return <DividoSettings />;
+        case 'category-transactions':
+          return <CategoryTransactions 
+            categoryName={state.selectedCategory || ''}
+            onBack={() => dispatch({ type: 'GO_BACK' })}
+          />;
+        // Divido screens
+        case 'divido':
+          return <Divido />;
+        case 'expense-group-detail':
+          return <ExpenseGroupDetail />;
+        case 'add-expense-group':
+        case 'edit-expense-group':
+          return <ExpenseGroupForm />;
+        case 'people-list':
+          return <PeopleList />;
+        case 'add-person':
+        case 'edit-person':
+          return <PersonForm />;
+        case 'add-expense':
+        case 'edit-expense':
+          return <ExpenseForm />;
+        default:
+          console.warn(`Unknown screen: ${currentScreen}, redirecting to dashboard`);
+          dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
+          return <Dashboard />;
+      }
+    } catch (error) {
+      console.error(`Error rendering screen ${currentScreen}:`, error);
+      // Fallback to dashboard on any rendering error
+      dispatch({ type: 'SET_SCREEN', payload: 'dashboard' });
+      return <Dashboard />;
     }
   };
 
