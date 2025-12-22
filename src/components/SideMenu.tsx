@@ -7,9 +7,11 @@ import { ICON_SIZES } from '../constants/iconSizes';
 interface SideMenuProps {
   visible: boolean;
   onClose: () => void;
+  wallyMenuItemRef?: React.RefObject<View>;
+  dividoMenuItemRef?: React.RefObject<View>;
 }
 
-export function SideMenu({ visible, onClose }: SideMenuProps) {
+export function SideMenu({ visible, onClose, wallyMenuItemRef, dividoMenuItemRef }: SideMenuProps) {
   const { state, dispatch } = useApp();
   const slideAnim = useRef(new Animated.Value(-300)).current;
 
@@ -89,9 +91,11 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
           <View style={styles.menuContent}>
             {menuItems.map((item) => {
               const activeColor = item.screen === 'dashboard' ? '#10b981' : '#ec9706';
+              const itemRef = item.screen === 'dashboard' ? wallyMenuItemRef : dividoMenuItemRef;
               return (
                 <TouchableOpacity
                   key={item.screen}
+                  ref={itemRef}
                   style={[
                     styles.menuItem,
                     item.isActive && [

@@ -6,7 +6,12 @@ import { ICON_SIZES } from '../constants/iconSizes';
 import { getGroupTotalExpenses, calculateBalances, calculateSimplifiedDebts } from '../utils/dividoUtils';
 import { SideMenu } from './SideMenu';
 
-export function Divido() {
+interface DividoProps {
+  menuButtonRef?: React.RefObject<View>;
+  addGroupButtonRef?: React.RefObject<View>;
+}
+
+export function Divido({ menuButtonRef, addGroupButtonRef }: DividoProps = {}) {
   const { state, dispatch, formatCurrency } = useApp();
   const [showSideMenu, setShowSideMenu] = useState(false);
 
@@ -56,6 +61,7 @@ export function Divido() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
+            ref={menuButtonRef}
             style={styles.menuButton}
             onPress={() => setShowSideMenu(true)}
           >
@@ -126,10 +132,11 @@ export function Divido() {
               Create your first expense group to start splitting bills
             </Text>
             <TouchableOpacity 
+              ref={addGroupButtonRef}
               style={styles.emptyButton}
               onPress={handleAddGroup}
             >
-              <Icon name="add" size={ICON_SIZES.SM} />
+              <Icon name="add" size={ICON_SIZES.SM} color="#ffffff" />
               <Text style={styles.emptyButtonText}>Create Group</Text>
             </TouchableOpacity>
           </View>
@@ -239,6 +246,7 @@ export function Divido() {
 
     {/* Floating Add Group Button */}
     <TouchableOpacity
+      ref={addGroupButtonRef}
       style={styles.floatingButton}
       onPress={handleAddGroup}
     >

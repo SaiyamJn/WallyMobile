@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { getCategoryIcon, getCategoryColor, formatDate, getMonthYearString, isTransactionInMonth, isTransactionBeforeMonth } from '../utils/transactionUtils';
@@ -6,9 +6,22 @@ import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 import { SideMenu } from './SideMenu';
 
-export function Dashboard() {
+interface DashboardProps {
+  floatingAddRef?: React.RefObject<View>;
+  menuButtonRef?: React.RefObject<View>;
+  onSideMenuVisibilityChange?: (visible: boolean) => void;
+  sideMenuDividoRef?: React.RefObject<View>;
+}
+
+export function Dashboard({ floatingAddRef, menuButtonRef, onSideMenuVisibilityChange, sideMenuDividoRef }: DashboardProps = {}) {
   const { state, dispatch, convertAmount, formatCurrency } = useApp();
   const [showSideMenu, setShowSideMenu] = useState(false);
+
+  useEffect(() => {
+    if (onSideMenuVisibilityChange) {
+      onSideMenuVisibilityChange(showSideMenu);
+    }
+  }, [showSideMenu, onSideMenuVisibilityChange]);
   
   // Month selector state - default to current month
   const currentDate = new Date();
@@ -141,6 +154,7 @@ export function Dashboard() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
+            ref={menuButtonRef}
             style={styles.menuButton}
             onPress={() => setShowSideMenu(true)}
           >
@@ -161,6 +175,8 @@ export function Dashboard() {
         <SideMenu 
           visible={showSideMenu}
           onClose={() => setShowSideMenu(false)}
+          wallyMenuItemRef={undefined}
+          dividoMenuItemRef={sideMenuDividoRef}
         />
 
         {/* Month Selector */}
@@ -301,6 +317,7 @@ export function Dashboard() {
 
       {/* Floating Add Transaction Button */}
       <TouchableOpacity
+        ref={floatingAddRef}
         style={styles.floatingButton}
         onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'add-transaction' })}
       >

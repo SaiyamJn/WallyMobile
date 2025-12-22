@@ -6,18 +6,22 @@ import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
 
 const navigationItems = [
-  { screen: 'dashboard' as Screen, icon: 'dashboard' },
-  { screen: 'transactions' as Screen, icon: 'transactions' },
-  { screen: 'accounts' as Screen, icon: 'accounts' },
-  { screen: 'reports' as Screen, icon: 'reports' },
-  { screen: 'settings' as Screen, icon: 'settings' },
+  { screen: 'dashboard' as Screen, icon: 'dashboard', label: 'Dashboard' },
+  { screen: 'transactions' as Screen, icon: 'transactions', label: 'Transactions' },
+  { screen: 'accounts' as Screen, icon: 'accounts', label: 'Accounts' },
+  { screen: 'reports' as Screen, icon: 'reports', label: 'Reports' },
+  { screen: 'settings' as Screen, icon: 'settings', label: 'Settings' },
 ];
 
-export function BottomNavigation() {
+interface BottomNavigationProps {
+  bottomNavRef?: React.RefObject<View>;
+}
+
+export function BottomNavigation({ bottomNavRef }: BottomNavigationProps = {}) {
   const { state, dispatch } = useApp();
 
   return (
-    <View style={styles.container}>
+    <View ref={bottomNavRef} style={styles.container}>
       <View style={styles.navigation}>
         {navigationItems.map(({ screen, icon }) => {
           const isActive = state.currentScreen === screen;

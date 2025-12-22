@@ -332,7 +332,7 @@ export function DividoSettings() {
             style={styles.dataButton}
             onPress={() => setShowPeopleModal(true)}
           >
-            <Icon name="people" size={ICON_SIZES.ACTION} />
+            <Icon name="people" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Manage People</Text>
               <Text style={styles.dataDescription}>Add or delete people</Text>
@@ -344,7 +344,7 @@ export function DividoSettings() {
             style={styles.dataButton}
             onPress={() => setShowGroupsModal(true)}
           >
-            <Icon name="groups" size={ICON_SIZES.ACTION} />
+            <Icon name="groups" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Manage Groups</Text>
               <Text style={styles.dataDescription}>Add or delete expense groups</Text>
@@ -356,7 +356,7 @@ export function DividoSettings() {
             style={styles.dataButton}
             onPress={handleExportData}
           >
-            <Icon name="save" size={ICON_SIZES.ACTION} />
+            <Icon name="save" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Export Backup</Text>
               <Text style={styles.dataDescription}>Save your Divido data to a backup file</Text>
@@ -368,7 +368,7 @@ export function DividoSettings() {
             style={styles.dataButton}
             onPress={handleImportButtonPress}
           >
-            <Icon name="edit" size={ICON_SIZES.ACTION} />
+            <Icon name="edit" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Import Backup</Text>
               <Text style={styles.dataDescription}>Restore Divido data from a backup file</Text>
@@ -380,7 +380,7 @@ export function DividoSettings() {
             style={styles.dataButton}
             onPress={handleClearData}
           >
-            <Icon name="delete" size={ICON_SIZES.ACTION} />
+            <Icon name="delete" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Clear Divido Data</Text>
               <Text style={styles.dataDescription}>Reset Divido to initial state</Text>
@@ -422,7 +422,7 @@ export function DividoSettings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>5.0.0</Text>
+            <Text style={styles.infoValue}>5.1.1</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total People</Text>
@@ -633,13 +633,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dataTitle: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#ffffff',
     fontWeight: '600',
     marginBottom: 4,
   },
   dataDescription: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#9ca3af',
   },
   arrow: {

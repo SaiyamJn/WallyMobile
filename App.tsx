@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, Text, ActivityIndicator, Image, BackHandler, KeyboardAvoidingView, Platform, ErrorUtils, TouchableOpacity, ScrollView } from 'react-native';
@@ -23,10 +23,22 @@ import { ExpenseGroupForm } from './src/components/ExpenseGroupForm';
 import { PeopleList } from './src/components/PeopleList';
 import { PersonForm } from './src/components/PersonForm';
 import { ExpenseForm } from './src/components/ExpenseForm';
+import { WalkthroughOverlay } from './src/components/WalkthroughOverlay';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [assetsReady, setAssetsReady] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [checkingWalkthrough, setCheckingWalkthrough] = useState(true);
+  const [sideMenuVisible, setSideMenuVisible] = useState(false);
+  
+  // Refs for walkthrough targets
+  const floatingAddRef = React.useRef<View>(null);
+  const menuButtonRef = React.useRef<View>(null);
+  const bottomNavRef = React.useRef<View>(null);
+  const sideMenuDividoRef = React.useRef<View>(null);
+  const dividoAddGroupRef = React.useRef<View>(null);
   
   // Get app context - this will work since AppContent is inside AppProvider
   const { state, dispatch } = useApp();
@@ -74,6 +86,34 @@ function AppContent() {
       return () => clearTimeout(timer);
     }
   }, [assetsReady]);
+
+  // Check if walkthrough should be shown (first time user)
+  useEffect(() => {
+    const checkWalkthrough = async () => {
+      try {
+        const walkthroughShown = await AsyncStorage.getItem('wally_walkthrough_shown');
+        if (walkthroughShown !== 'true') {
+          setShowWalkthrough(true);
+        }
+        setCheckingWalkthrough(false);
+      } catch (error) {
+        console.error('Error checking walkthrough:', error);
+        setCheckingWalkthrough(false);
+      }
+    };
+    
+    if (!isLoading) {
+      checkWalkthrough();
+    }
+  }, [isLoading]);
+
+  const handleWalkthroughComplete = () => {
+    setShowWalkthrough(false);
+  };
+
+  const handleWalkthroughSkip = () => {
+    setShowWalkthrough(false);
+  };
 
 
   // Handle Android back button
@@ -153,7 +193,7 @@ function AppContent() {
 
   const renderCurrentScreen = () => {
     if (!state || !state.currentScreen) {
-      return <Dashboard />;
+      return <Dashboard floatingAddRef={floatingAddRef} menuButtonRef={menuButtonRef} />;
     }
     
     const currentScreen = state.currentScreen;
@@ -164,13 +204,23 @@ function AppContent() {
         (currentScreen === 'edit-expense' && !state.selectedExpenseId) ||
         (currentScreen === 'edit-person' && !state.selectedPersonId) ||
         (currentScreen === 'category-transactions' && !state.selectedCategory)) {
-      return <Dashboard />; // Show dashboard while redirect happens
+      return <Dashboard 
+        floatingAddRef={floatingAddRef} 
+        menuButtonRef={menuButtonRef}
+        onSideMenuVisibilityChange={setSideMenuVisible}
+        sideMenuDividoRef={sideMenuDividoRef}
+      />; // Show dashboard while redirect happens
     }
     
     try {
       switch (currentScreen) {
         case 'dashboard':
-          return <Dashboard />;
+          return <Dashboard 
+            floatingAddRef={floatingAddRef} 
+            menuButtonRef={menuButtonRef}
+            onSideMenuVisibilityChange={setSideMenuVisible}
+            sideMenuDividoRef={sideMenuDividoRef}
+          />;
         case 'transactions':
           return <TransactionsList />;
         case 'add-transaction':
@@ -194,7 +244,7 @@ function AppContent() {
           />;
         // Divido screens
         case 'divido':
-          return <Divido />;
+          return <Divido menuButtonRef={menuButtonRef} addGroupButtonRef={dividoAddGroupRef} />;
         case 'expense-group-detail':
           return <ExpenseGroupDetail />;
         case 'add-expense-group':
@@ -210,7 +260,12 @@ function AppContent() {
           return <ExpenseForm />;
         default:
           console.warn(`Unknown screen: ${currentScreen}, redirecting to dashboard`);
-          return <Dashboard />;
+          return <Dashboard 
+            floatingAddRef={floatingAddRef} 
+            menuButtonRef={menuButtonRef}
+            onSideMenuVisibilityChange={setSideMenuVisible}
+            sideMenuDividoRef={sideMenuDividoRef}
+          />;
       }
     } catch (error) {
       console.error(`Error rendering screen ${currentScreen}:`, error);
@@ -264,11 +319,25 @@ function AppContent() {
             </View>
           </KeyboardAvoidingView>
           {state && state.currentScreen && !['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
-            <BottomNavigation />
+            <BottomNavigation bottomNavRef={bottomNavRef} />
           )}
           {state && state.currentScreen && ['divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'].includes(state.currentScreen) && (
             <DividoBottomNavigation />
           )}
+          
+          {/* Walkthrough Overlay */}
+          <WalkthroughOverlay
+            visible={showWalkthrough && !checkingWalkthrough}
+            currentScreen={state?.currentScreen || 'dashboard'}
+            onComplete={handleWalkthroughComplete}
+            onSkip={handleWalkthroughSkip}
+            floatingAddRef={floatingAddRef}
+            menuButtonRef={menuButtonRef}
+            bottomNavRef={bottomNavRef}
+            sideMenuDividoRef={sideMenuDividoRef}
+            dividoAddGroupRef={dividoAddGroupRef}
+            sideMenuVisible={sideMenuVisible}
+          />
         </View>
       )}
     </SafeAreaProvider>

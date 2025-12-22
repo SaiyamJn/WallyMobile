@@ -65,7 +65,7 @@ export function PeopleList() {
             style={styles.emptyButton}
             onPress={handleAddPerson}
           >
-            <Icon name="add" size={ICON_SIZES.SM} />
+            <Icon name="add" size={ICON_SIZES.SM} color="#ffffff" />
             <Text style={styles.emptyButtonText}>Add Your First Person</Text>
           </TouchableOpacity>
         </View>

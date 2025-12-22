@@ -368,7 +368,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={() => dispatch({ type: 'SET_SCREEN', payload: 'categories' })}
           >
-            <Icon name="chart" size={ICON_SIZES.ACTION} />
+            <Icon name="chart" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Manage Categories</Text>
               <Text style={styles.dataDescription}>Add, edit, or delete categories</Text>
@@ -380,7 +380,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={handleExportData}
           >
-            <Icon name="save" size={ICON_SIZES.ACTION} />
+            <Icon name="save" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Export Backup</Text>
               <Text style={styles.dataDescription}>Save your data to a backup file</Text>
@@ -392,7 +392,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={handleImportButtonPress}
           >
-            <Icon name="edit" size={ICON_SIZES.ACTION} />
+            <Icon name="edit" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Import Backup</Text>
               <Text style={styles.dataDescription}>Restore data from a backup file</Text>
@@ -404,7 +404,7 @@ export function Settings() {
             style={styles.dataButton}
             onPress={handleClearData}
           >
-            <Icon name="delete" size={ICON_SIZES.ACTION} />
+            <Icon name="delete" size={ICON_SIZES.ACTION + 4} />
             <View style={styles.dataInfo}>
               <Text style={styles.dataTitle}>Clear All Data</Text>
               <Text style={styles.dataDescription}>Reset the app to initial state</Text>
@@ -463,7 +463,7 @@ export function Settings() {
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>5.0.0</Text>
+            <Text style={styles.infoValue}>5.1.1</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Total Transactions</Text>
@@ -741,13 +741,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dataTitle: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#ffffff',
     fontWeight: '600',
     marginBottom: 4,
   },
   dataDescription: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#9ca3af',
   },
   arrow: {
