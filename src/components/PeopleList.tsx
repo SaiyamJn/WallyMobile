@@ -107,9 +107,8 @@ export function PeopleList() {
         visible={alertState.visible}
         title={alertState.title}
         message={alertState.message}
-        type={alertState.type}
+        buttons={alertState.buttons}
         onClose={hideAlert}
-        onConfirm={alertState.onConfirm}
       />
     </ScrollView>
   );

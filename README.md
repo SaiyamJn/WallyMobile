@@ -304,7 +304,7 @@ The app includes comprehensive validation to ensure data integrity:
 ### **App Configuration** (`app.json`)
 - App name: Wally
 - Package: com.saiyamjn.Wally
-- Version: 5.1.1
+- Version: 5.1.2
 - Orientation: Portrait
 - Theme: Dark
 
@@ -354,7 +354,7 @@ If you have any questions or need help, please:
 
 ## ✨ **Recent Updates**
 
-### **v5.1.1 - Divido: Expense Splitting App**
+### **v5.1.2 - Divido: Expense Splitting App**
 - ✅ **Complete Divido Integration**: Full-featured expense splitting application within Wally
 - ✅ **Expense Groups**: Create and manage expense groups with multiple people
 - ✅ **Flexible Expense Splitting**: Split expenses equally, by custom amounts, or by percentage

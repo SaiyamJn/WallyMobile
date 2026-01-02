@@ -271,7 +271,7 @@ export function ExpenseGroupForm() {
         visible={alertState.visible}
         title={alertState.title}
         message={alertState.message}
-        type={alertState.type}
+        buttons={alertState.buttons}
         onClose={hideAlert}
       />
     </ScrollView>

@@ -17,6 +17,9 @@ interface CustomAlertProps {
 export function CustomAlert({ visible, title, message, buttons, onClose, verticalButtons = false }: CustomAlertProps) {
   if (!visible) return null;
 
+  // Safety check: ensure buttons is an array
+  const safeButtons = buttons || [];
+
   return (
     <Modal
       transparent
@@ -31,12 +34,12 @@ export function CustomAlert({ visible, title, message, buttons, onClose, vertica
             <Text style={styles.message}>{message}</Text>
             
             <View style={[styles.buttonContainer, verticalButtons && styles.buttonContainerVertical]}>
-              {buttons.map((button, index) => (
+              {safeButtons.map((button, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
                     verticalButtons ? styles.buttonVertical : styles.button,
-                    !verticalButtons && buttons.length === 1 && styles.singleButton,
+                    !verticalButtons && safeButtons.length === 1 && styles.singleButton,
                     button.style === 'destructive' && styles.destructiveButton,
                     button.style === 'cancel' && styles.cancelButton,
                   ]}
