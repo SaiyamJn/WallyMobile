@@ -14,7 +14,11 @@ export interface Debt {
 }
 
 /**
- * Calculate balances for all people in a group
+ * Calculate balances for all people in a group.
+ * Handles complex splits correctly: when only a subset of the group is involved
+ * in an expense, only those participants are debited; the payer is always credited.
+ * Includes anyone who appears in any group expense (payer or in splits) so
+ * balances are never dropped for people not in group.members (e.g. legacy data).
  */
 export function calculateBalances(
   group: ExpenseGroup,
@@ -24,10 +28,17 @@ export function calculateBalances(
   const groupExpenses = expenses.filter(e => e.groupId === group.id);
   const balances: Map<string, PersonBalance> = new Map();
 
-  // Initialize balances for all group members
-  group.members.forEach(memberId => {
-    balances.set(memberId, {
-      personId: memberId,
+  // Collect all person IDs that appear in any group expense (payer or in splits)
+  const personIdsInExpenses = new Set<string>(group.members);
+  groupExpenses.forEach(expense => {
+    personIdsInExpenses.add(expense.paidBy);
+    expense.splits.forEach(split => personIdsInExpenses.add(split.personId));
+  });
+
+  // Initialize balances for everyone in the group and everyone in any expense
+  personIdsInExpenses.forEach(personId => {
+    balances.set(personId, {
+      personId,
       totalPaid: 0,
       totalOwed: 0,
       netBalance: 0
@@ -42,7 +53,7 @@ export function calculateBalances(
       paidByBalance.netBalance += expense.amount;
     }
 
-    // Subtract what each person owes
+    // Subtract what each person owes (only participants in this expense get debited)
     expense.splits.forEach(split => {
       const splitBalance = balances.get(split.personId);
       if (splitBalance) {
@@ -56,14 +67,19 @@ export function calculateBalances(
 }
 
 /**
- * Calculate simplified debts (minimize number of transactions)
- * Uses a greedy algorithm to simplify who owes whom
+ * Calculate simplified debts (minimize number of transactions).
+ * "X owes Y $Z" means X should pay Y that amount to settle the group.
+ * Does not mutate the input balances.
  */
 export function calculateSimplifiedDebts(
   balances: PersonBalance[]
 ): Debt[] {
   const debts: Debt[] = [];
-  const sortedBalances = [...balances].sort((a, b) => b.netBalance - a.netBalance);
+  // Work on copies so we don't mutate the caller's balance objects
+  const sortedBalances = balances.map(b => ({
+    personId: b.personId,
+    netBalance: b.netBalance
+  })).sort((a, b) => b.netBalance - a.netBalance);
 
   let i = 0; // Pointer for people who are owed (positive balance)
   let j = sortedBalances.length - 1; // Pointer for people who owe (negative balance)
@@ -98,6 +114,31 @@ export function calculateSimplifiedDebts(
   }
 
   return debts;
+}
+
+/**
+ * Return remaining debts after subtracting all settled amounts for this group.
+ * Used so the home screen and detail show "Settlements needed" only when there is still something to pay.
+ */
+export function getRemainingDebts(
+  debts: Debt[],
+  settlements: Settlement[],
+  groupId: string
+): Debt[] {
+  const groupSettlements = settlements.filter(
+    s => s.groupId === groupId && s.settled === true
+  );
+  const remaining: Debt[] = [];
+  for (const debt of debts) {
+    const settledTotal = groupSettlements
+      .filter(s => s.from === debt.from && s.to === debt.to)
+      .reduce((sum, s) => sum + s.amount, 0);
+    const left = Math.round((debt.amount - settledTotal) * 100) / 100;
+    if (left > 0.01) {
+      remaining.push({ from: debt.from, to: debt.to, amount: left });
+    }
+  }
+  return remaining;
 }
 
 /**

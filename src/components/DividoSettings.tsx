@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Platform }
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { useApp } from '../contexts/AppContext';
+import { useApp, normalizeBackupJson } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
 import { Icon } from './ui/Icon';
@@ -37,7 +37,7 @@ export function DividoSettings() {
       const backupJson = await exportDividoData();
       
       if (!backupJson || backupJson.trim().length === 0) {
-        showErrorAlert('Failed to export: No data to export. Please ensure you have people, expense groups, expenses, or settlements.');
+        showErrorAlert('Failed to export: Could not generate backup. Please try again.');
         return;
       }
 
@@ -130,7 +130,7 @@ export function DividoSettings() {
                 dialogTitle: 'Save Backup to Downloads',
                 UTI: 'public.json'
               });
-              showSuccessAlert('Backup saved! Check your Downloads folder.');
+              showSuccessAlert('Backup ready! Save or share it from the menu.');
             } catch (shareError) {
               console.error('Sharing error:', shareError);
               try {
@@ -209,9 +209,10 @@ export function DividoSettings() {
           title: fileName
         });
         
-        if (shareResult.action === Share.sharedAction) {
+        if (shareResult?.action === Share.sharedAction) {
           showSuccessAlert('Backup shared successfully!');
         }
+        // If user dismissed without sharing, we don't show a message
       }
     } catch (error) {
       console.error('Error sharing backup:', error);
@@ -224,23 +225,27 @@ export function DividoSettings() {
   };
 
   const handleImportData = async (backupJson: string) => {
-    if (!backupJson.trim()) {
+    const normalized = normalizeBackupJson(backupJson);
+    if (!normalized) {
       showErrorAlert('Please paste your backup data');
       return;
     }
 
     try {
-      const parsed = JSON.parse(backupJson);
-      if (!parsed.version || !parsed.timestamp || !Array.isArray(parsed.people) || !Array.isArray(parsed.expenseGroups) || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.settlements)) {
+      let parsed: unknown = JSON.parse(normalized);
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+      const data = parsed as Record<string, unknown>;
+      if (!data.version || !data.timestamp || !Array.isArray(data.people) || !Array.isArray(data.expenseGroups) || !Array.isArray(data.expenses) || !Array.isArray(data.settlements)) {
         showErrorAlert('Invalid backup file: This does not appear to be a valid Divido backup file. Please ensure you are importing a file exported from Divido.');
         return;
       }
     } catch (error) {
-      showErrorAlert('Invalid backup file: Not a valid JSON file. Please ensure you are importing a Divido backup file.');
+      const errMsg = error instanceof Error ? error.message : 'Invalid JSON';
+      showErrorAlert(`Invalid JSON: ${errMsg}. Make sure you pasted the full backup. Try "Paste from clipboard" if you copied from another app.`);
       return;
     }
 
-    const result = await importDividoData(backupJson);
+    const result = await importDividoData(normalized);
     if (result.success) {
       setShowImportModal(false);
       showSuccessAlert(result.message);
@@ -275,18 +280,22 @@ export function DividoSettings() {
           return;
         }
         
-        const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+        const rawContent = await FileSystem.readAsStringAsync(fileUri, {
           encoding: FileSystem.EncodingType.UTF8,
         });
+        const fileContent = normalizeBackupJson(rawContent);
 
         try {
-          const parsed = JSON.parse(fileContent);
-          if (!parsed.version || !parsed.timestamp || !Array.isArray(parsed.people) || !Array.isArray(parsed.expenseGroups) || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.settlements)) {
+          let parsed: unknown = JSON.parse(fileContent);
+          if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+          const data = parsed as Record<string, unknown>;
+          if (!data.version || !data.timestamp || !Array.isArray(data.people) || !Array.isArray(data.expenseGroups) || !Array.isArray(data.expenses) || !Array.isArray(data.settlements)) {
             showErrorAlert('Invalid backup file: This does not appear to be a valid Divido backup file. Please ensure you are importing a file exported from Divido.');
             return;
           }
         } catch (parseError) {
-          showErrorAlert('Invalid backup file: Not a valid JSON file. Please ensure you are importing a Divido backup file.');
+          const errMsg = parseError instanceof Error ? parseError.message : 'Invalid JSON';
+          showErrorAlert(`Invalid backup file: ${errMsg}. Please ensure you selected a valid Divido backup file.`);
           return;
         }
 
@@ -567,10 +576,11 @@ export function DividoSettings() {
       <CustomInputModal
         visible={showImportModal}
         title="Import Backup"
-        message="Paste your backup JSON data below. This will replace all current Divido data."
+        message="Paste your backup JSON below or tap 'Paste from clipboard'. This will replace all current Divido data."
         placeholder="Paste backup JSON here..."
         keyboardType="default"
         multiline={true}
+        showPasteButton={true}
         onConfirm={handleImportData}
         onCancel={() => {
           setShowImportModal(false);

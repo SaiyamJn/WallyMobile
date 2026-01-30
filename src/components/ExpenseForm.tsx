@@ -65,33 +65,58 @@ export function ExpenseForm() {
     if (formData.amount && formData.participants.length > 0) {
       const amount = parseFloat(formData.amount);
       if (!isNaN(amount) && amount > 0) {
+        const participantsSet = new Set(formData.participants);
+        const splitsSet = new Set(formData.splits.map(s => s.personId));
+        const participantsMatchSplits =
+          formData.participants.length === formData.splits.length &&
+          formData.participants.every(pid => splitsSet.has(pid)) &&
+          formData.splits.every(s => participantsSet.has(s.personId));
+
         if (formData.splitType === 'equal') {
           const splitAmount = amount / formData.participants.length;
           const newSplits: Split[] = formData.participants.map(personId => ({
             personId,
             amount: Math.round((splitAmount * 100)) / 100
           }));
+          // Fix rounding: ensure sum equals amount by adjusting last split
+          const sum = newSplits.reduce((s, x) => s + x.amount, 0);
+          if (newSplits.length > 0 && Math.abs(sum - amount) > 0.001) {
+            newSplits[newSplits.length - 1].amount =
+              Math.round((amount - sum + newSplits[newSplits.length - 1].amount) * 100) / 100;
+          }
           setFormData(prev => ({ ...prev, splits: newSplits }));
         } else if (formData.splitType === 'custom') {
-          // Keep existing custom splits, or initialize with equal splits
-          if (formData.splits.length === 0 || 
-              formData.splits.some(s => !formData.participants.includes(s.personId))) {
+          // Reinit when participants don't match splits (e.g. someone removed)
+          if (!participantsMatchSplits) {
             const splitAmount = amount / formData.participants.length;
             const newSplits: Split[] = formData.participants.map(personId => ({
               personId,
               amount: Math.round((splitAmount * 100)) / 100
             }));
+            if (newSplits.length > 0 && Math.abs(newSplits.reduce((s, x) => s + x.amount, 0) - amount) > 0.001) {
+              newSplits[newSplits.length - 1].amount =
+                Math.round((amount - newSplits.slice(0, -1).reduce((s, x) => s + x.amount, 0)) * 100) / 100;
+            }
             setFormData(prev => ({ ...prev, splits: newSplits }));
           }
         } else if (formData.splitType === 'percentage') {
-          // Initialize with equal percentages
-          const percentage = 100 / formData.participants.length;
-          const newSplits: Split[] = formData.participants.map(personId => ({
-            personId,
-            amount: Math.round((amount * percentage / 100) * 100) / 100,
-            percentage
-          }));
-          setFormData(prev => ({ ...prev, splits: newSplits }));
+          // Reinit when participants don't match splits
+          if (!participantsMatchSplits) {
+            const percentage = 100 / formData.participants.length;
+            const newSplits: Split[] = formData.participants.map(personId => ({
+              personId,
+              amount: Math.round((amount * percentage / 100) * 100) / 100,
+              percentage
+            }));
+            if (newSplits.length > 0) {
+              const sum = newSplits.reduce((s, x) => s + x.amount, 0);
+              if (Math.abs(sum - amount) > 0.001) {
+                newSplits[newSplits.length - 1].amount =
+                  Math.round((amount - sum + newSplits[newSplits.length - 1].amount) * 100) / 100;
+              }
+            }
+            setFormData(prev => ({ ...prev, splits: newSplits }));
+          }
         }
       }
     }
@@ -162,13 +187,29 @@ export function ExpenseForm() {
   };
 
   const handleToggleParticipant = (personId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      participants: prev.participants.includes(personId)
+    setFormData(prev => {
+      const newParticipants = prev.participants.includes(personId)
         ? prev.participants.filter(id => id !== personId)
-        : [...prev.participants, personId],
-      splits: prev.splits.filter(s => s.personId !== personId)
-    }));
+        : [...prev.participants, personId];
+      if (newParticipants.length === 0) {
+        return { ...prev, participants: newParticipants, splits: [] };
+      }
+      const amount = parseFloat(prev.amount) || 0;
+      if (amount <= 0) {
+        return { ...prev, participants: newParticipants, splits: prev.splits.filter(s => newParticipants.includes(s.personId)) };
+      }
+      // Recalculate splits when participants change so amounts always sum to total (e.g. after removing someone)
+      const splitAmount = amount / newParticipants.length;
+      const newSplits: Split[] = newParticipants.map(pid => ({
+        personId: pid,
+        amount: Math.round((splitAmount * 100)) / 100
+      }));
+      if (newSplits.length > 0 && Math.abs(newSplits.reduce((s, x) => s + x.amount, 0) - amount) > 0.001) {
+        newSplits[newSplits.length - 1].amount =
+          Math.round((amount - newSplits.slice(0, -1).reduce((s, x) => s + x.amount, 0)) * 100) / 100;
+      }
+      return { ...prev, participants: newParticipants, splits: newSplits };
+    });
   };
 
   const handleSplitAmountChange = (personId: string, value: string) => {

@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 interface CustomInputModalProps {
   visible: boolean;
   title: string;
   message: string;
   placeholder?: string;
-  keyboardType?: 'default' | 'numeric' | 'email-address';
+  keyboardType?: 'default' | 'numeric' | 'email-address' | 'decimal-pad';
   multiline?: boolean;
+  /** When set, show a "Paste from clipboard" button (e.g. for backup JSON import) */
+  showPasteButton?: boolean;
+  /** Optional initial value when modal opens (e.g. for partial settlement amount) */
+  initialValue?: string;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
@@ -19,19 +24,43 @@ export function CustomInputModal({
   placeholder = '', 
   keyboardType = 'default',
   multiline = false,
+  showPasteButton = false,
+  initialValue = '',
   onConfirm, 
   onCancel 
 }: CustomInputModalProps) {
   const [inputValue, setInputValue] = useState('');
+  const [pasting, setPasting] = useState(false);
+
+  // Set input when modal is opened (initialValue for amount modals, else empty)
+  useEffect(() => {
+    if (visible) {
+      setInputValue(initialValue);
+    }
+  }, [visible, initialValue]);
 
   const handleConfirm = () => {
-    onConfirm(inputValue);
+    onConfirm(inputValue.trim());
     setInputValue('');
   };
 
   const handleCancel = () => {
     setInputValue('');
     onCancel();
+  };
+
+  const handlePaste = async () => {
+    try {
+      setPasting(true);
+      const text = await Clipboard.getStringAsync();
+      if (text && text.trim()) {
+        setInputValue(text.trim());
+      }
+    } catch (e) {
+      // Ignore clipboard errors (e.g. permission or empty)
+    } finally {
+      setPasting(false);
+    }
   };
 
   if (!visible) return null;
@@ -73,8 +102,21 @@ export function CustomInputModal({
                 selectTextOnFocus={!multiline}
                 scrollEnabled={multiline}
                 textBreakStrategy="simple"
+                editable={!pasting}
               />
-              
+              {showPasteButton && (
+                <TouchableOpacity
+                  style={styles.pasteButton}
+                  onPress={handlePaste}
+                  disabled={pasting}
+                >
+                  {pasting ? (
+                    <ActivityIndicator size="small" color="#ec9706" />
+                  ) : (
+                    <Text style={styles.pasteButtonText}>Paste from clipboard</Text>
+                  )}
+                </TouchableOpacity>
+              )}
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -157,6 +199,21 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 14,
     lineHeight: 20,
+  },
+  pasteButton: {
+    backgroundColor: '#3e3e3eff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  pasteButtonText: {
+    color: '#ec9706',
+    fontSize: 15,
+    fontWeight: '600',
   },
   buttonContainer: {
     flexDirection: 'row',

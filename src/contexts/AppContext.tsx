@@ -535,6 +535,30 @@ export interface BackupData {
   settlements: Settlement[];
 }
 
+/**
+ * Normalize pasted/loaded backup JSON so JSON.parse succeeds.
+ * - Strips BOM (byte order mark)
+ * - Trims whitespace
+ * - Replaces smart/curly quotes with straight quotes
+ * - Removes other control characters that break parsing
+ */
+export function normalizeBackupJson(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  let s = raw
+    .replace(/^\uFEFF/, '') // BOM
+    .trim();
+  // Replace common smart quotes and dashes that break JSON
+  s = s
+    .replace(/\u201C/g, '"')  // "
+    .replace(/\u201D/g, '"')  // "
+    .replace(/\u2018/g, "'")  // '
+    .replace(/\u2019/g, "'")  // '
+    .replace(/\uFF02/g, '"'); // fullwidth "
+  // Remove null bytes and other control chars (keep \n \r \t)
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  return s.trim();
+}
+
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
@@ -819,35 +843,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isLoaded
   ]);
 
-  // Export data as JSON string
+  // Export data as JSON string (Wally: transactions, categories, accounts, currency, plus Divido data)
   const exportData = async (): Promise<string> => {
-    const backupData: BackupData = {
-      version: CURRENT_DATA_VERSION,
-      timestamp: new Date().toISOString(),
-      transactions: state.transactions,
-      categories: state.categories,
-      accounts: state.accounts,
-      currentCurrency: state.currentCurrency,
-      people: state.people,
-      expenseGroups: state.expenseGroups,
-      expenses: state.expenses,
-      settlements: state.settlements
-    };
-    return JSON.stringify(backupData, null, 2);
+    try {
+      const backupData: BackupData = {
+        version: CURRENT_DATA_VERSION,
+        timestamp: new Date().toISOString(),
+        transactions: Array.isArray(state.transactions) ? state.transactions : [],
+        categories: Array.isArray(state.categories) ? state.categories : [],
+        accounts: Array.isArray(state.accounts) ? state.accounts : [],
+        currentCurrency: state.currentCurrency,
+        people: Array.isArray(state.people) ? state.people : [],
+        expenseGroups: Array.isArray(state.expenseGroups) ? state.expenseGroups : [],
+        expenses: Array.isArray(state.expenses) ? state.expenses : [],
+        settlements: Array.isArray(state.settlements) ? state.settlements : []
+      };
+      const json = JSON.stringify(backupData, null, 2);
+      // Sanity check: ensure it parses back
+      JSON.parse(json);
+      return json;
+    } catch (e) {
+      console.error('Export failed:', e);
+      return '';
+    }
   };
 
   // Export Divido data only
   const exportDividoData = async (): Promise<string> => {
-    const backupData = {
-      version: CURRENT_DATA_VERSION,
-      timestamp: new Date().toISOString(),
-      type: 'divido',
-      people: state.people,
-      expenseGroups: state.expenseGroups,
-      expenses: state.expenses,
-      settlements: state.settlements
-    };
-    return JSON.stringify(backupData, null, 2);
+    try {
+      const backupData = {
+        version: CURRENT_DATA_VERSION,
+        timestamp: new Date().toISOString(),
+        type: 'divido',
+        people: Array.isArray(state.people) ? state.people : [],
+        expenseGroups: Array.isArray(state.expenseGroups) ? state.expenseGroups : [],
+        expenses: Array.isArray(state.expenses) ? state.expenses : [],
+        settlements: Array.isArray(state.settlements) ? state.settlements : []
+      };
+      const json = JSON.stringify(backupData, null, 2);
+      JSON.parse(json);
+      return json;
+    } catch (e) {
+      console.error('Divido export failed:', e);
+      return '';
+    }
   };
 
   // Validate backup data structure
@@ -879,13 +918,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { valid: false, message: 'Invalid backup file: Missing or invalid accounts array' };
     }
 
-    // Check if currentCurrency exists and has required fields
-    if (!data.currentCurrency || typeof data.currentCurrency !== 'object') {
-      return { valid: false, message: 'Invalid backup file: Missing or invalid currentCurrency object' };
-    }
-
-    if (!data.currentCurrency.code || !data.currentCurrency.symbol || !data.currentCurrency.name) {
-      return { valid: false, message: 'Invalid backup file: Invalid currency format' };
+    // currentCurrency is optional; if present must have code/symbol/name (fallback used in import)
+    if (data.currentCurrency != null && typeof data.currentCurrency === 'object') {
+      if (!data.currentCurrency.code || !data.currentCurrency.symbol || !data.currentCurrency.name) {
+        return { valid: false, message: 'Invalid backup file: Invalid currency format' };
+      }
     }
 
     // Validate transaction structure (only if transactions exist)
@@ -933,12 +970,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Import data from JSON string
   const importData = async (backupJson: string): Promise<{ success: boolean; message: string }> => {
     try {
+      const normalized = normalizeBackupJson(backupJson || '');
+      if (!normalized) {
+        return { success: false, message: 'Backup data is empty. Please paste or select a valid Wally backup file.' };
+      }
       // First, try to parse JSON
       let backupData: BackupData;
       try {
-        backupData = JSON.parse(backupJson);
+        const parsed = JSON.parse(normalized);
+        // Handle double-encoded JSON (e.g. pasted from a log that showed a string)
+        backupData = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
       } catch (parseError) {
-        return { success: false, message: 'Invalid backup file: Not a valid JSON file. Please ensure you are importing a Wally backup file.' };
+        const errMsg = parseError instanceof Error ? parseError.message : 'Invalid JSON';
+        return { success: false, message: `Invalid JSON: ${errMsg}. Make sure you pasted the full backup (starts with { and ends with }). Try "Paste from clipboard" if you copied from another app.` };
       }
 
       // Validate backup data structure
@@ -1027,11 +1071,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Import Divido data from JSON string
   const importDividoData = async (backupJson: string): Promise<{ success: boolean; message: string }> => {
     try {
+      const normalized = normalizeBackupJson(backupJson || '');
+      if (!normalized) {
+        return { success: false, message: 'Backup data is empty. Please paste or select a valid Divido backup file.' };
+      }
       let backupData: any;
       try {
-        backupData = JSON.parse(backupJson);
+        const parsed = JSON.parse(normalized);
+        backupData = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
       } catch (parseError) {
-        return { success: false, message: 'Invalid backup file: Not a valid JSON file. Please ensure you are importing a Divido backup file.' };
+        const errMsg = parseError instanceof Error ? parseError.message : 'Invalid JSON';
+        return { success: false, message: `Invalid JSON: ${errMsg}. Make sure you pasted the full backup (starts with { and ends with }). Try "Paste from clipboard" if you copied from another app.` };
       }
 
       // Validate backup data structure

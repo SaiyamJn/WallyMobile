@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useApp } from '../contexts/AppContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { CustomAlert } from './ui/CustomAlert';
+import { CustomInputModal } from './ui/CustomInputModal';
 import { Icon } from './ui/Icon';
 import { PersonAvatar } from './ui/PersonAvatar';
 import { ICON_SIZES } from '../constants/iconSizes';
@@ -10,6 +11,7 @@ import { Settlement } from '../types';
 import { 
   calculateBalances, 
   calculateSimplifiedDebts, 
+  getRemainingDebts,
   getGroupExpenses,
   getPersonName 
 } from '../utils/dividoUtils';
@@ -32,66 +34,41 @@ export function ExpenseGroupDetail() {
   const groupExpenses = getGroupExpenses(group.id, state.expenses);
   const balances = calculateBalances(group, state.expenses, state.people);
   const debts = calculateSimplifiedDebts(balances);
-  
-  // Helper to check if a debt is already settled (uses current state)
-  const isDebtSettled = (debt: { from: string; to: string; amount: number }) => {
-    const groupSettlements = state.settlements.filter(s => s.groupId === group.id);
-    return groupSettlements.some(s => 
-      s.from === debt.from && 
-      s.to === debt.to && 
-      Math.abs(s.amount - debt.amount) < 0.01 && 
-      s.settled === true
-    );
-  };
-  
-  // Helper to mark a debt as settled
-  const handleSettleDebt = useCallback((debt: { from: string; to: string; amount: number }) => {
+  const remainingDebts = getRemainingDebts(debts, state.settlements, group.id);
+
+  const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [debtToSettle, setDebtToSettle] = useState<{ from: string; to: string; amount: number } | null>(null);
+
+  // Add a settlement (full or partial amount)
+  const handleSettleDebt = useCallback((debt: { from: string; to: string; amount: number }, amount: number) => {
     try {
-      if (!group || !group.id) {
-        console.error('Group not found when settling debt');
+      if (!group?.id) {
         showErrorAlert('Group not found. Please try again.');
         return;
       }
-
-      // Get current settlements for this group (always use fresh state)
-      const currentSettlements = state.settlements.filter(s => s.groupId === group.id);
-      
-      // Check if settlement already exists
-      const existingSettlement = currentSettlements.find(s => 
-        s.from === debt.from && 
-        s.to === debt.to && 
-        Math.abs(s.amount - debt.amount) < 0.01
-      );
-      
-      if (existingSettlement) {
-        // Update existing settlement
-        dispatch({
-          type: 'UPDATE_SETTLEMENT',
-          payload: {
-            ...existingSettlement,
-            settled: true,
-            date: new Date().toISOString()
-          }
-        });
-      } else {
-        // Create new settlement
-        const newSettlement: Settlement = {
-          id: Date.now().toString(),
-          groupId: group.id,
-          from: debt.from,
-          to: debt.to,
-          amount: debt.amount,
-          settled: true,
-          date: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-        dispatch({ type: 'ADD_SETTLEMENT', payload: newSettlement });
+      const settleAmount = Math.round(Math.max(0, Math.min(amount, debt.amount)) * 100) / 100;
+      if (settleAmount < 0.01) {
+        showErrorAlert('Please enter an amount greater than 0.');
+        return;
       }
+      const newSettlement: Settlement = {
+        id: Date.now().toString(),
+        groupId: group.id,
+        from: debt.from,
+        to: debt.to,
+        amount: settleAmount,
+        settled: true,
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      dispatch({ type: 'ADD_SETTLEMENT', payload: newSettlement });
+      setSettleModalVisible(false);
+      setDebtToSettle(null);
     } catch (error) {
       console.error('Error settling debt:', error);
       showErrorAlert('Failed to mark payment as settled. Please try again.');
     }
-  }, [group, state.settlements, dispatch, showErrorAlert]);
+  }, [group, dispatch, showErrorAlert]);
 
   const handleAddExpense = () => {
     dispatch({ type: 'SET_SCREEN', payload: 'add-expense' });
@@ -267,12 +244,21 @@ export function ExpenseGroupDetail() {
                         </View>
                       </View>
                       <View style={styles.expenseAmountContainer}>
-                        <Text style={styles.expenseAmount}>
-                          {formatCurrency(expense.amount)}
-                        </Text>
-                        <Text style={styles.expensePerPerson}>
-                          {formatCurrency(splitAmount)} each
-                        </Text>
+                        <TouchableOpacity
+                          style={styles.expenseDeleteButton}
+                          onPress={() => handleDeleteExpense(expense.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Icon name="delete" size={ICON_SIZES.SM} color="#ef4444" />
+                        </TouchableOpacity>
+                        <View>
+                          <Text style={styles.expenseAmount}>
+                            {formatCurrency(expense.amount)}
+                          </Text>
+                          <Text style={styles.expensePerPerson}>
+                            {formatCurrency(splitAmount)} each
+                          </Text>
+                        </View>
                       </View>
                     </View>
                     <View style={styles.expenseSplits}>
@@ -504,7 +490,7 @@ export function ExpenseGroupDetail() {
       {/* Settlements Tab */}
       {activeTab === 'settlements' && (
         <View style={styles.tabContent}>
-          {debts.length === 0 ? (
+          {remainingDebts.length === 0 && groupExpenses.length > 0 ? (
             <View style={styles.emptyState}>
               <Icon name="success" size={ICON_SIZES.EMPTY_STATE} />
               <Text style={styles.emptyTitle}>All settled!</Text>
@@ -512,69 +498,139 @@ export function ExpenseGroupDetail() {
                 No outstanding balances in this group
               </Text>
             </View>
+          ) : remainingDebts.length === 0 && groupExpenses.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Icon name="chart" size={ICON_SIZES.EMPTY_STATE} />
+              <Text style={styles.emptyTitle}>No expenses yet</Text>
+              <Text style={styles.emptyText}>
+                Add expenses to see settlements
+              </Text>
+            </View>
           ) : (
             <>
-              {/* Unsettled Debts */}
-              {debts.filter(debt => !isDebtSettled(debt)).length > 0 && (
-                <>
-                  {debts
-                    .filter(debt => !isDebtSettled(debt))
-                    .map((debt, index) => {
-                      const fromPerson = state.people.find(p => p.id === debt.from);
-                      const toPerson = state.people.find(p => p.id === debt.to);
-                      
-                      return (
-                        <View key={index} style={styles.debtCard}>
-                          <View style={styles.debtHeader}>
-                            <View style={styles.debtLeft}>
-                              <View style={[styles.personIcon, { backgroundColor: fromPerson?.color + '20' }]}>
-                                <PersonAvatar icon={fromPerson?.icon || 'av0'} size={40} />
-                              </View>
-                              <View style={styles.debtInfo}>
-                                <Text style={styles.debtText}>
-                                  <Text style={styles.debtFrom}>{fromPerson?.name || 'Unknown'}</Text>
-                                  {' owes '}
-                                  <Text style={styles.debtTo}>{toPerson?.name || 'Unknown'}</Text>
-                                </Text>
-                                <Text style={styles.debtAmount}>
-                                  {formatCurrency(debt.amount)}
-                                </Text>
-                              </View>
-                            </View>
+              {/* Who owes whom - remaining only */}
+              <View style={styles.whoOwesSection}>
+                <Text style={styles.whoOwesTitle}>Who owes whom</Text>
+                <Text style={styles.whoOwesSubtitle}>
+                  Remaining payments needed:
+                </Text>
+                {(() => {
+                  const debtsByFrom = remainingDebts.reduce<Record<string, Array<{ to: string; amount: number }>>>((acc, d) => {
+                    if (!acc[d.from]) acc[d.from] = [];
+                    acc[d.from].push({ to: d.to, amount: d.amount });
+                    return acc;
+                  }, {});
+                  return Object.entries(debtsByFrom).map(([fromId, toList]) => {
+                    const fromPerson = state.people.find(p => p.id === fromId);
+                    return (
+                      <View key={fromId} style={styles.whoOwesRow}>
+                        <View style={styles.whoOwesPersonRow}>
+                          <View style={[styles.whoOwesAvatar, { backgroundColor: (fromPerson?.color || '#6b7280') + '30' }]}>
+                            <PersonAvatar icon={fromPerson?.icon || 'av0'} size={20} />
                           </View>
-                          <TouchableOpacity
-                            style={styles.settleButton}
-                            onPress={() => {
-                              showConfirmAlert(
-                                'Mark as Settled',
-                                `Mark this payment as settled? ${fromPerson?.name || 'Unknown'} has paid ${toPerson?.name || 'Unknown'} ${formatCurrency(debt.amount)}.`,
-                                () => handleSettleDebt(debt)
-                              );
-                            }}
-                          >
-                            <Icon name="success" size={ICON_SIZES.SM} color="#ffffff" />
-                            <Text style={styles.settleButtonText}>Payment Settled</Text>
-                          </TouchableOpacity>
+                          <Text style={styles.whoOwesPersonName}>{fromPerson?.name || 'Unknown'} owes</Text>
+                        </View>
+                        {toList.map(({ to, amount }) => {
+                          const toPerson = state.people.find(p => p.id === to);
+                          return (
+                            <View key={to} style={styles.whoOwesDebtRow}>
+                              <Text style={styles.whoOwesToName}>→ {toPerson?.name || 'Unknown'}</Text>
+                              <Text style={styles.whoOwesAmount}>{formatCurrency(amount)}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  });
+                })()}
+              </View>
+
+              {/* Remaining debt cards - tap to settle (full or partial) */}
+              {remainingDebts.map((debt, index) => {
+                const fromPerson = state.people.find(p => p.id === debt.from);
+                const toPerson = state.people.find(p => p.id === debt.to);
+                return (
+                  <View key={`${debt.from}-${debt.to}-${index}`} style={styles.debtCard}>
+                    <View style={styles.debtHeader}>
+                      <View style={styles.debtLeft}>
+                        <View style={[styles.personIcon, { backgroundColor: fromPerson?.color + '20' }]}>
+                          <PersonAvatar icon={fromPerson?.icon || 'av0'} size={40} />
+                        </View>
+                        <View style={styles.debtInfo}>
+                          <Text style={styles.debtText}>
+                            <Text style={styles.debtFrom}>{fromPerson?.name || 'Unknown'}</Text>
+                            {' owes '}
+                            <Text style={styles.debtTo}>{toPerson?.name || 'Unknown'}</Text>
+                          </Text>
+                          <Text style={styles.debtAmount}>
+                            {formatCurrency(debt.amount)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.settleButton}
+                      onPress={() => {
+                        setDebtToSettle(debt);
+                        setSettleModalVisible(true);
+                      }}
+                    >
+                      <Icon name="success" size={ICON_SIZES.SM} color="#ffffff" />
+                      <Text style={styles.settleButtonText}>Settle payment</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+
+              {/* Settlements made (below pending) */}
+              {(() => {
+                const groupSettlements = state.settlements
+                  .filter(s => s.groupId === group.id && s.settled)
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                if (groupSettlements.length === 0) return null;
+                return (
+                  <View style={styles.pastSettlementsSection}>
+                    <Text style={styles.whoOwesTitle}>Settlements made</Text>
+                    {groupSettlements.map(s => {
+                      const fromPerson = state.people.find(p => p.id === s.from);
+                      const toPerson = state.people.find(p => p.id === s.to);
+                      return (
+                        <View key={s.id} style={styles.pastSettlementRow}>
+                          <Text style={styles.pastSettlementText}>
+                            {fromPerson?.name || 'Unknown'} → {toPerson?.name || 'Unknown'}: {formatCurrency(s.amount)}
+                          </Text>
+                          <Text style={styles.pastSettlementDate}>
+                            {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Text>
                         </View>
                       );
                     })}
-                </>
-              )}
-              
-              {/* Show message if all debts are settled */}
-              {debts.filter(debt => !isDebtSettled(debt)).length === 0 && debts.length > 0 && (
-                <View style={styles.emptyState}>
-                  <Icon name="success" size={ICON_SIZES.EMPTY_STATE} />
-                  <Text style={styles.emptyTitle}>All payments settled!</Text>
-                  <Text style={styles.emptyText}>
-                    All outstanding balances have been marked as settled
-                  </Text>
-                </View>
-              )}
+                  </View>
+                );
+              })()}
             </>
           )}
         </View>
       )}
+
+      {/* Partial settlement amount modal */}
+      <CustomInputModal
+        visible={settleModalVisible}
+        title="Settle payment"
+        message={debtToSettle ? `How much is being settled? (max ${formatCurrency(debtToSettle.amount)})` : ''}
+        placeholder="Amount"
+        keyboardType="decimal-pad"
+        initialValue={debtToSettle ? debtToSettle.amount.toString() : ''}
+        onConfirm={(value) => {
+          if (!debtToSettle) return;
+          const amount = parseFloat(value.replace(/,/g, '.')) || 0;
+          handleSettleDebt(debtToSettle, amount);
+        }}
+        onCancel={() => {
+          setSettleModalVisible(false);
+          setDebtToSettle(null);
+        }}
+      />
 
       <CustomAlert
         visible={alertState.visible}
@@ -769,8 +825,15 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
   expenseAmountContainer: {
-    alignItems: 'flex-end',
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
+  expenseDeleteButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   expenseAmount: {
     fontSize: 18,
@@ -920,6 +983,88 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     fontStyle: 'italic',
+  },
+  whoOwesSection: {
+    backgroundColor: '#202020ff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ec9706',
+  },
+  whoOwesTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  whoOwesSubtitle: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginBottom: 16,
+  },
+  whoOwesRow: {
+    marginBottom: 14,
+  },
+  whoOwesPersonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  whoOwesAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whoOwesPersonName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  whoOwesDebtRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingLeft: 36,
+    paddingVertical: 4,
+  },
+  whoOwesToName: {
+    fontSize: 14,
+    color: '#d1d5db',
+  },
+  whoOwesAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ec9706',
+  },
+  pastSettlementsSection: {
+    backgroundColor: '#1a2e1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+  },
+  pastSettlementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  pastSettlementText: {
+    fontSize: 14,
+    color: '#d1d5db',
+    flex: 1,
+  },
+  pastSettlementDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginLeft: 8,
   },
   debtCard: {
     backgroundColor: '#202020ff',

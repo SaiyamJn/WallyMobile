@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { useApp } from '../contexts/AppContext';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
-import { getGroupTotalExpenses, calculateBalances, calculateSimplifiedDebts } from '../utils/dividoUtils';
+import { getGroupTotalExpenses, calculateBalances, calculateSimplifiedDebts, getRemainingDebts } from '../utils/dividoUtils';
 import { SideMenu } from './SideMenu';
 
 interface DividoProps {
@@ -146,7 +146,8 @@ export function Divido({ menuButtonRef, addGroupButtonRef }: DividoProps = {}) {
             const totalGroupExpenses = getGroupTotalExpenses(group.id, state.expenses);
             const balances = calculateBalances(group, state.expenses, state.people);
             const debts = calculateSimplifiedDebts(balances);
-            const isSettled = debts.length === 0 && groupExpenses.length > 0;
+            const remainingDebts = getRemainingDebts(debts, state.settlements, group.id);
+            const isSettled = remainingDebts.length === 0 && groupExpenses.length > 0;
             
             return (
               <TouchableOpacity
@@ -221,19 +222,19 @@ export function Divido({ menuButtonRef, addGroupButtonRef }: DividoProps = {}) {
                   </View>
                 )}
                 
-                {debts.length > 0 && (
+                {remainingDebts.length > 0 && (
                   <View style={styles.groupDebts}>
                     <View style={styles.debtsHeader}>
                       <Icon name="expense_arrow" size={14} color="#ef4444" />
                       <Text style={styles.debtsLabel}>Settlements needed</Text>
                     </View>
                     <Text style={styles.debtsText} numberOfLines={2}>
-                      {debts.slice(0, 2).map((debt, idx) => {
+                      {remainingDebts.slice(0, 2).map((debt, idx) => {
                         const fromPerson = state.people.find(p => p.id === debt.from);
                         const toPerson = state.people.find(p => p.id === debt.to);
                         return `${fromPerson?.name || 'Unknown'} → ${toPerson?.name || 'Unknown'} ${formatCurrency(debt.amount)}`;
                       }).join(' • ')}
-                      {debts.length > 2 && ` • +${debts.length - 2} more`}
+                      {remainingDebts.length > 2 && ` • +${remainingDebts.length - 2} more`}
                     </Text>
                   </View>
                 )}
