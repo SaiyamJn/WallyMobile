@@ -10,7 +10,7 @@ import { ICON_SIZES } from '../constants/iconSizes';
 import { Settlement } from '../types';
 import { 
   calculateBalances, 
-  calculateSimplifiedDebts, 
+  calculateProportionalDebts, 
   getRemainingDebts,
   getGroupExpenses,
   getPersonName 
@@ -33,7 +33,7 @@ export function ExpenseGroupDetail() {
 
   const groupExpenses = getGroupExpenses(group.id, state.expenses);
   const balances = calculateBalances(group, state.expenses, state.people);
-  const debts = calculateSimplifiedDebts(balances);
+  const debts = calculateProportionalDebts(balances);
   const remainingDebts = getRemainingDebts(debts, state.settlements, group.id);
 
   const [settleModalVisible, setSettleModalVisible] = useState(false);

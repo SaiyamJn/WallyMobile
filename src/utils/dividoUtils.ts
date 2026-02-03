@@ -117,6 +117,48 @@ export function calculateSimplifiedDebts(
 }
 
 /**
+ * Calculate proportional debts for any number of payers and any number of people who owe.
+ * Each person who owes (debtor) gets a debt to each person who is owed (creditor), in proportion
+ * to that creditor's share of the total amount owed. Works for 1 or many payers and 1 or many debtors.
+ * Does not mutate the input balances.
+ */
+export function calculateProportionalDebts(
+  balances: PersonBalance[]
+): Debt[] {
+  const creditors = balances.filter(b => b.netBalance > 0.01);
+  const debtors = balances.filter(b => b.netBalance < -0.01);
+  const totalOwed = creditors.reduce((s, c) => s + c.netBalance, 0);
+  if (totalOwed < 0.01 || debtors.length === 0) return [];
+
+  const debts: Debt[] = [];
+  for (const debtor of debtors) {
+    const debtAmount = Math.round(Math.abs(debtor.netBalance) * 100) / 100;
+    const creditorShares = creditors.map(c => ({
+      personId: c.personId,
+      share: c.netBalance / totalOwed
+    }));
+    // Allocate proportionally; put rounding remainder on last creditor so debtor total matches
+    let allocated = 0;
+    for (let i = 0; i < creditorShares.length; i++) {
+      const exact = debtAmount * creditorShares[i].share;
+      const isLast = i === creditorShares.length - 1;
+      const amount = isLast
+        ? Math.max(0, Math.round((debtAmount - allocated) * 100) / 100)
+        : Math.round(exact * 100) / 100;
+      allocated += amount;
+      if (amount > 0.01) {
+        debts.push({
+          from: debtor.personId,
+          to: creditorShares[i].personId,
+          amount
+        });
+      }
+    }
+  }
+  return debts;
+}
+
+/**
  * Return remaining debts after subtracting all settled amounts for this group.
  * Used so the home screen and detail show "Settlements needed" only when there is still something to pay.
  */

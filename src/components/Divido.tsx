@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { useApp } from '../contexts/AppContext';
 import { Icon } from './ui/Icon';
 import { ICON_SIZES } from '../constants/iconSizes';
-import { getGroupTotalExpenses, calculateBalances, calculateSimplifiedDebts, getRemainingDebts } from '../utils/dividoUtils';
+import { getGroupTotalExpenses, calculateBalances, calculateProportionalDebts, getRemainingDebts } from '../utils/dividoUtils';
 import { SideMenu } from './SideMenu';
 
 interface DividoProps {
@@ -145,7 +145,7 @@ export function Divido({ menuButtonRef, addGroupButtonRef }: DividoProps = {}) {
             const groupExpenses = state.expenses.filter(e => e.groupId === group.id);
             const totalGroupExpenses = getGroupTotalExpenses(group.id, state.expenses);
             const balances = calculateBalances(group, state.expenses, state.people);
-            const debts = calculateSimplifiedDebts(balances);
+            const debts = calculateProportionalDebts(balances);
             const remainingDebts = getRemainingDebts(debts, state.settlements, group.id);
             const isSettled = remainingDebts.length === 0 && groupExpenses.length > 0;
             
