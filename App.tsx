@@ -13,6 +13,7 @@ import { CategoryManagement } from './src/components/CategoryManagement';
 import { Reports } from './src/components/Reports';
 import { Settings } from './src/components/Settings';
 import { Accounts } from './src/components/Accounts';
+import { EditAccountForm } from './src/components/EditAccountForm';
 import { BottomNavigation } from './src/components/BottomNavigation';
 import { DividoBottomNavigation } from './src/components/DividoBottomNavigation';
 import { DividoSettings } from './src/components/DividoSettings';
@@ -176,9 +177,13 @@ function AppContent() {
       console.warn('category-transactions screen requires selectedCategory, redirecting to dashboard');
       needsRedirect = true;
       redirectTo = 'dashboard';
+    } else if (currentScreen === 'edit-account' && !state.selectedAccountId) {
+      console.warn('edit-account screen requires selectedAccountId, redirecting to accounts');
+      needsRedirect = true;
+      redirectTo = 'accounts';
     } else {
       // Check for unknown/invalid screens
-      const validScreens: Screen[] = ['dashboard', 'transactions', 'add-transaction', 'edit-transaction', 'categories', 'reports', 'settings', 'accounts', 'category-transactions', 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
+      const validScreens: Screen[] = ['dashboard', 'transactions', 'add-transaction', 'edit-transaction', 'categories', 'reports', 'settings', 'accounts', 'edit-account', 'category-transactions', 'divido', 'expense-group-detail', 'add-expense-group', 'edit-expense-group', 'people-list', 'add-person', 'edit-person', 'add-expense', 'edit-expense', 'divido-settings'];
       if (!validScreens.includes(currentScreen)) {
         console.warn(`Unknown screen: ${currentScreen}, redirecting to dashboard`);
         needsRedirect = true;
@@ -189,7 +194,7 @@ function AppContent() {
     if (needsRedirect) {
       dispatch({ type: 'SET_SCREEN', payload: redirectTo });
     }
-  }, [state?.currentScreen, state?.selectedTransactionId, state?.selectedExpenseGroupId, state?.selectedExpenseId, state?.selectedPersonId, state?.selectedCategory, isLoading, dispatch]);
+  }, [state?.currentScreen, state?.selectedTransactionId, state?.selectedExpenseGroupId, state?.selectedExpenseId, state?.selectedPersonId, state?.selectedCategory, state?.selectedAccountId, isLoading, dispatch]);
 
   const renderCurrentScreen = () => {
     if (!state || !state.currentScreen) {
@@ -203,7 +208,8 @@ function AppContent() {
         (currentScreen === 'expense-group-detail' && !state.selectedExpenseGroupId) ||
         (currentScreen === 'edit-expense' && !state.selectedExpenseId) ||
         (currentScreen === 'edit-person' && !state.selectedPersonId) ||
-        (currentScreen === 'category-transactions' && !state.selectedCategory)) {
+        (currentScreen === 'category-transactions' && !state.selectedCategory) ||
+        (currentScreen === 'edit-account' && !state.selectedAccountId)) {
       return <Dashboard 
         floatingAddRef={floatingAddRef} 
         menuButtonRef={menuButtonRef}
@@ -231,6 +237,8 @@ function AppContent() {
           return <CategoryManagement />;
         case 'accounts':
           return <Accounts />;
+        case 'edit-account':
+          return <EditAccountForm />;
         case 'reports':
           return <Reports />;
         case 'settings':

@@ -17,6 +17,11 @@ export function CategoryTransactions({
   const { state, convertAmount, formatCurrency, dispatch } = useApp();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
+  // When showing all accounts, only include transactions that belong to existing accounts (ignore orphans)
+  const validAccountIds = new Set(state.accounts.map(a => a.id));
+  const accountMatch = (t: { accountId?: string }) =>
+    selectedAccountId ? t.accountId === selectedAccountId : (!t.accountId || validAccountIds.has(t.accountId));
+
   // Get ALL transactions for this category (not just current month)
   // Check if categoryName is actually an account name by looking for it in accounts
   const isAccountName = state.accounts.some(account => account.name === categoryName);
@@ -33,10 +38,7 @@ export function CategoryTransactions({
       matchesCategory = t.category === categoryName;
     }
     
-    // Then filter by selected account if one is selected
-    const matchesAccount = !selectedAccountId || t.accountId === selectedAccountId;
-    
-    return matchesCategory && matchesAccount;
+    return matchesCategory && accountMatch(t);
   });
 
   // Sort transactions with newest first (same as TransactionsList)

@@ -32,6 +32,7 @@ type AppAction =
   | { type: 'DELETE_CATEGORY'; payload: string }
   | { type: 'RESET_CATEGORIES' }
   | { type: 'ADD_ACCOUNT'; payload: Account }
+  | { type: 'UPDATE_ACCOUNT'; payload: Account }
   | { type: 'DELETE_ACCOUNT'; payload: string }
   | { type: 'SET_CURRENCY'; payload: Currency }
   | { type: 'SET_SCREEN'; payload: Screen }
@@ -244,18 +245,22 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_TRANSACTION':
       return {
         ...state,
-        transactions: state.transactions.filter(t => t.id !== action.payload)
+        transactions: state.transactions.filter(t => t.id !== action.payload),
+        selectedTransactionId: state.selectedTransactionId === action.payload ? null : state.selectedTransactionId
       };
     case 'ADD_CATEGORY':
       return {
         ...state,
         categories: [...state.categories, action.payload]
       };
-    case 'DELETE_CATEGORY':
+    case 'DELETE_CATEGORY': {
+      const deletedCategory = state.categories.find(c => c.id === action.payload);
       return {
         ...state,
-        categories: state.categories.filter(c => c.id !== action.payload)
+        categories: state.categories.filter(c => c.id !== action.payload),
+        selectedCategory: deletedCategory && state.selectedCategory === deletedCategory.name ? null : state.selectedCategory
       };
+    }
     case 'RESET_CATEGORIES':
       // Get custom categories that have transactions (not default categories)
       const customCategoriesWithTransactions = state.categories.filter(category => {
@@ -276,11 +281,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         accounts: [...state.accounts, action.payload]
       };
-    case 'DELETE_ACCOUNT':
+    case 'UPDATE_ACCOUNT':
       return {
         ...state,
-        accounts: state.accounts.filter(a => a.id !== action.payload)
+        accounts: state.accounts.map(a => a.id === action.payload.id ? action.payload : a)
       };
+    case 'DELETE_ACCOUNT': {
+      // Remove the account and all transactions that belonged to it
+      const deletedId = action.payload;
+      return {
+        ...state,
+        accounts: state.accounts.filter(a => a.id !== deletedId),
+        transactions: state.transactions.filter(t => t.accountId !== deletedId),
+        selectedAccountId: state.selectedAccountId === deletedId ? null : state.selectedAccountId
+      };
+    }
     case 'SET_CURRENCY':
       return {
         ...state,
@@ -436,22 +451,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
           p.id === action.payload.id ? action.payload : p
         )
       };
-    case 'DELETE_PERSON':
-      // Also remove person from all expense groups and delete related expenses
+    case 'DELETE_PERSON': {
+      // Remove person from all expense groups; remove groups with no members; remove expenses in deleted groups
       const updatedGroups = state.expenseGroups.map(group => ({
         ...group,
         members: group.members.filter(memberId => memberId !== action.payload)
-      })).filter(group => group.members.length > 0); // Remove groups with no members
-      
+      })).filter(group => group.members.length > 0);
+      const keptGroupIds = new Set(updatedGroups.map(g => g.id));
       return {
         ...state,
         people: state.people.filter(p => p.id !== action.payload),
         expenseGroups: updatedGroups,
-        expenses: state.expenses.filter(e => {
-          const group = state.expenseGroups.find(g => g.id === e.groupId);
-          return group && group.members.includes(action.payload);
-        })
+        expenses: state.expenses.filter(e => keptGroupIds.has(e.groupId)),
+        selectedPersonId: state.selectedPersonId === action.payload ? null : state.selectedPersonId
       };
+    }
     case 'ADD_EXPENSE_GROUP':
       return {
         ...state,
@@ -469,7 +483,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         expenseGroups: state.expenseGroups.filter(g => g.id !== action.payload),
         expenses: state.expenses.filter(e => e.groupId !== action.payload),
-        settlements: state.settlements.filter(s => s.groupId !== action.payload)
+        settlements: state.settlements.filter(s => s.groupId !== action.payload),
+        selectedExpenseGroupId: state.selectedExpenseGroupId === action.payload ? null : state.selectedExpenseGroupId,
+        selectedExpenseId: state.expenses.some(e => e.id === state.selectedExpenseId && e.groupId === action.payload) ? null : state.selectedExpenseId
       };
     case 'ADD_EXPENSE':
       return {
@@ -486,7 +502,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_EXPENSE':
       return {
         ...state,
-        expenses: state.expenses.filter(e => e.id !== action.payload)
+        expenses: state.expenses.filter(e => e.id !== action.payload),
+        selectedExpenseId: state.selectedExpenseId === action.payload ? null : state.selectedExpenseId
       };
     case 'ADD_SETTLEMENT':
       return {

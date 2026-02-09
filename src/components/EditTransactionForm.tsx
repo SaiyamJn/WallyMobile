@@ -46,16 +46,19 @@ export function EditTransactionForm() {
     color: '#ed9149'
   });
 
-  // Initialize form with transaction data
+  // Initialize form with transaction data (use valid account only; ignore deleted/orphan accountIds)
   useEffect(() => {
     if (transaction) {
+      const validAccountId = transaction.accountId && state.accounts.some(a => a.id === transaction.accountId)
+        ? transaction.accountId
+        : '';
       setFormData({
         amount: transaction.amount.toString(),
         type: transaction.type,
         category: transaction.category,
         description: transaction.description,
         date: transaction.date.split('T')[0], // Extract date-only portion from ISO datetime string
-        accountId: transaction.accountId || ''
+        accountId: validAccountId
       });
       // Parse date as local midnight to avoid timezone issues
       const [year, month, day] = (transaction.date.split('T')[0]).split('-').map(Number);

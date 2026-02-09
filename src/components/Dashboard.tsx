@@ -39,12 +39,15 @@ export function Dashboard({ floatingAddRef, menuButtonRef, onSideMenuVisibilityC
   }, [state.accounts, selectedAccountId]);
 
   const currentCurrency = state.currentCurrency;
+  // When showing all accounts, only include transactions that belong to existing accounts (ignore orphans)
+  const validAccountIds = new Set(state.accounts.map(a => a.id));
+  const accountMatch = (t: { accountId?: string }) =>
+    selectedAccountId ? t.accountId === selectedAccountId : (!t.accountId || validAccountIds.has(t.accountId));
 
   // Calculate carry forward balance (all transactions before selected month, filtered by account)
   const carryForwardBalance = state.transactions
     .filter(t => {
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return accountMatch && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
+      return accountMatch(t) && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
     })
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
@@ -54,8 +57,7 @@ export function Dashboard({ floatingAddRef, menuButtonRef, onSideMenuVisibilityC
   // Calculate totals in current currency for selected month, filtered by account
   const totalIncome = state.transactions
     .filter(t => {
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return accountMatch && t.type === 'income' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
+      return accountMatch(t) && t.type === 'income' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
     })
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
@@ -64,8 +66,7 @@ export function Dashboard({ floatingAddRef, menuButtonRef, onSideMenuVisibilityC
 
   const totalExpense = state.transactions
     .filter(t => {
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return accountMatch && t.type === 'expense' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
+      return accountMatch(t) && t.type === 'expense' && isTransactionInMonth(t.date, selectedMonth, selectedYear);
     })
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, currentCurrency.code);
@@ -100,10 +101,7 @@ export function Dashboard({ floatingAddRef, menuButtonRef, onSideMenuVisibilityC
 
   // Get the 5 most recent transactions for selected month and account, sorted with newest first
   const recentTransactions = state.transactions
-    .filter(t => {
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return accountMatch && isTransactionInMonth(t.date, selectedMonth, selectedYear);
-    })
+    .filter(t => accountMatch(t) && isTransactionInMonth(t.date, selectedMonth, selectedYear))
     .sort((a, b) => {
       // Handle both full datetime and date-only formats
       const dateA = new Date(a.date).getTime();

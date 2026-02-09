@@ -59,13 +59,17 @@ export function Reports() {
   };
 
   const { start: periodStart, end: periodEnd } = getDateRange();
+
+  // When showing all accounts, only include transactions that belong to existing accounts (ignore orphans)
+  const validAccountIds = new Set(state.accounts.map(a => a.id));
+  const accountMatch = (t: { accountId?: string }) =>
+    selectedAccountId ? t.accountId === selectedAccountId : (!t.accountId || validAccountIds.has(t.accountId));
   
   // Filter transactions for selected period and account
   const periodTransactions = state.transactions.filter(t => {
     const transactionDate = new Date(t.date);
     const dateMatch = transactionDate >= periodStart && transactionDate <= periodEnd;
-    const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-    return dateMatch && accountMatch;
+    return dateMatch && accountMatch(t);
   });
 
   // Calculate totals

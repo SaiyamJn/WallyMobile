@@ -111,15 +111,26 @@ export function Accounts() {
         </View>
         <View style={styles.accountRight}>
           <Text style={styles.viewTransactionsHint}>View Transactions →</Text>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={(e) => {
-              e.stopPropagation(); // Prevent card click when deleting
-              handleDeleteAccount(account.id);
-            }}
-          >
-            <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={styles.accountActions}>
+            <TouchableOpacity
+              style={styles.iconActionButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                dispatch({ type: 'SET_SCREEN_WITH_ACCOUNT', payload: { screen: 'edit-account', accountId: account.id } });
+              }}
+            >
+              <Icon name="edit" size={ICON_SIZES.ACTION} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent card click when deleting
+                handleDeleteAccount(account.id);
+              }}
+            >
+              <Icon name="delete" size={ICON_SIZES.ACTION} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       
@@ -400,6 +411,17 @@ const styles = StyleSheet.create({
   accountDescription: {
     fontSize: 10,
     color: '#6b7280',
+  },
+  accountActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconActionButton: {
+    padding: 8,
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteButton: {
     padding: 8,

@@ -36,7 +36,7 @@ export interface Account {
   createdAt: string;
 }
 
-export type Screen = 'dashboard' | 'transactions' | 'add-transaction' | 'edit-transaction' | 'categories' | 'reports' | 'settings' | 'accounts' | 'category-transactions' | 'divido' | 'expense-group-detail' | 'add-expense-group' | 'edit-expense-group' | 'people-list' | 'add-person' | 'edit-person' | 'add-expense' | 'edit-expense' | 'divido-settings';
+export type Screen = 'dashboard' | 'transactions' | 'add-transaction' | 'edit-transaction' | 'categories' | 'reports' | 'settings' | 'accounts' | 'edit-account' | 'category-transactions' | 'divido' | 'expense-group-detail' | 'add-expense-group' | 'edit-expense-group' | 'people-list' | 'add-person' | 'edit-person' | 'add-expense' | 'edit-expense' | 'divido-settings';
 
 // Divido Types
 export interface Person {

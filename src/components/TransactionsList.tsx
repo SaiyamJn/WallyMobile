@@ -21,12 +21,14 @@ export function TransactionsList() {
   // Use context selectedAccountId if available, otherwise use local state
   const selectedAccountId = state.selectedAccountId !== null ? state.selectedAccountId : localSelectedAccountId;
 
+  // When showing all accounts, only include transactions that belong to existing accounts (ignore orphans)
+  const validAccountIds = new Set(state.accounts.map(a => a.id));
+  const accountMatch = (t: { accountId?: string }) =>
+    selectedAccountId ? t.accountId === selectedAccountId : (!t.accountId || validAccountIds.has(t.accountId));
+
   // Calculate carry forward balance (all transactions before selected month)
   const carryForwardBalance = state.transactions
-    .filter(t => {
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
-      return accountMatch && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear);
-    })
+    .filter(t => accountMatch(t) && isTransactionBeforeMonth(t.date, selectedMonth, selectedYear))
     .reduce((sum, t) => {
       const convertedAmount = convertAmount(t.amount, t.currency, state.currentCurrency.code);
       return sum + (t.type === 'income' ? convertedAmount : -convertedAmount);
@@ -36,9 +38,8 @@ export function TransactionsList() {
   const filteredTransactions = state.transactions
     .filter(t => {
       const typeMatch = filter === 'all' || t.type === filter;
-      const accountMatch = !selectedAccountId || t.accountId === selectedAccountId;
       const monthMatch = isTransactionInMonth(t.date, selectedMonth, selectedYear);
-      return typeMatch && accountMatch && monthMatch;
+      return typeMatch && accountMatch(t) && monthMatch;
     })
     .sort((a, b) => {
       // Handle both full datetime and date-only formats
